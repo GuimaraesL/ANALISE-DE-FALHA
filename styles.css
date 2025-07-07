@@ -1,0 +1,102 @@
+﻿/* Respeita os temas claros e escuros do Streamlit */
+html, body, .stApp {
+    font-family: "Segoe UI", sans-serif;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+body {
+    background-color: transparent !important;
+}
+
+/* Títulos principais */
+h1, .stApp h1 {
+    color: inherit;
+    font-weight: bold;
+    margin-bottom: 20px;
+}
+
+/* Subtítulos */
+h2, .stApp h2, .st-subheader {
+    color: inherit;
+    font-weight: 600;
+}
+
+/* Botões */
+.stButton > button {
+    background-color: #1E3A8A;
+    color: #FFFFFF;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-weight: bold;
+    transition: background-color 0.3s;
+}
+
+    .stButton > button:hover {
+        background-color: #2563EB;
+    }
+
+/* Campos de entrada */
+.stTextInput > div > input,
+.stSelectbox > div > div {
+    border: 2px solid #1E3A8A;
+    border-radius: 5px;
+    padding: 8px;
+}
+
+/* Checkbox */
+.stCheckbox > label {
+    color: inherit;
+    font-weight: 500;
+}
+
+/* Expanders */
+.stExpander {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    margin-bottom: 10px;
+}
+
+/* Bloco de código */
+.stCodeBlock {
+    background-color: #2D3748;
+    color: #F7FAFC;
+    border-radius: 5px;
+    padding: 10px;
+}
+
+/* Estilo para colunas dos 5 Porquês */
+.five-whys-column {
+    background-color: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 5px;
+    padding: 10px;
+    margin: 5px;
+}
+
+/* Animação de processamento */
+.processing-animation {
+    display: inline-block;
+    animation: hourglass-rotate 2s infinite linear;
+    font-size: 20px;
+}
+
+@keyframes hourglass-rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Correção visual para o selectbox multilinha */
+.stSelectbox > div > div {
+    min-height: 55px !important;
+    line-height: 1.6 !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    overflow: visible !important;
+    white-space: normal !important;
+}

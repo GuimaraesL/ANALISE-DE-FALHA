@@ -1,0 +1,310 @@
+﻿# app.py
+import streamlit as st
+from pathlib import Path
+import os
+import sys
+import logging
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
+import matplotlib.path as mpath
+from datetime import datetime
+from ui.texts import TEXTS  
+from core.prompts import format_ishikawa, format_5whys, format_list
+from core.failure_analysis_app import FailureAnalysisApp
+from core.config_loader import load_config
+
+config = load_config()
+
+credentials_path = config.get("google_credentials_path")
+if credentials_path and Path(credentials_path).exists():
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
+    logging.info(f"Credenciais do Google Cloud carregadas de: {credentials_path}")
+else:
+    # Emite um aviso se o arquivo não for encontrado, pois a análise de vídeo falhará.
+    st.warning(f"Arquivo de credenciais '{credentials_path}' não encontrado. A análise de vídeo pode falhar.")
+
+api_key = config.get("gemini_api_key")
+
+# Ajustar o PYTHONPATH para incluir o diretório raiz
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+try:
+    from core.excel_reader import ExcelReader
+    from core.image_analyzer import ImageAnalyzer
+    from core.ai_processor import AIProcessor
+    from core.report_generator import ReportGenerator
+except ModuleNotFoundError as e:
+    st.error(f"❌ Erro ao importar módulos: {e}. Verifique se o diretório 'core' existe e contém '__init__.py'.")
+    logging.error(f"Erro ao importar módulos: {e}")
+    st.stop()
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+logger = logging.getLogger(__name__)
+
+# Carregar CSS
+def load_css():
+    css_path = Path("styles.css")
+    if css_path.exists():
+        with open(css_path, "r") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    else:
+        st.warning("⚠️ Arquivo styles.css não encontrado. Usando estilo padrão.")
+
+# Função aprimorada com cabeça de peixe
+
+def plot_ishikawa(ishikawa_data, texts, lang_code="pt"):
+
+
+    fig, ax = plt.subplots(figsize=(16, 10))
+    ax.set_xlim(0, 22)
+    ax.set_ylim(-10, 10)
+    ax.axis("off")
+
+    # Linha central
+    ax.plot([4, 19], [0, 0], color="#FF6600", lw=3)
+
+    # Cabeça de peixe (efeito)
+    head = mpath.Path(
+        [(19, -2), (21, 0), (19, 2), (19, -2)],
+        [mpath.Path.MOVETO, mpath.Path.LINETO, mpath.Path.LINETO, mpath.Path.CLOSEPOLY]
+    )
+    patch = patches.PathPatch(head, facecolor="#FF6600", edgecolor="black", lw=2)
+    ax.add_patch(patch)
+    ax.text(20, 0, texts["ishikawa_effect"], va="center", ha="center", fontsize=12, fontweight="bold", color="white")
+
+    # Categorias alternadas
+    categorias = list(ishikawa_data["causes"].keys())
+    y_positions = [6, 4, 2, -2, -4, -6]
+
+    for idx, (categoria, y_cat) in enumerate(zip(categorias, y_positions)):
+        y_target = 0
+        x_base = 4 + (idx + 1) * 2
+
+        # Linha da categoria
+        ax.plot([x_base, x_base], [y_target, y_cat], color="#1E3A8A", lw=2)
+
+        # Caixa da categoria
+        ax.add_patch(patches.FancyBboxPatch((x_base - 1.2, y_cat - 0.6), 2.4, 1.2,
+                                            boxstyle="round,pad=0.3", fc="#1E3A8A", ec="black"))
+        ax.text(x_base, y_cat, categoria, va="center", ha="center", fontsize=10, color="white", fontweight="bold")
+
+        # Causas conectadas
+        causas = ishikawa_data["causes"].get(categoria, [])
+        for j, causa in enumerate(causas):
+            offset = 0.8 * (j + 1)
+            sinal = 1 if y_cat > 0 else -1
+            y_causa = y_cat + sinal * offset
+            x_causa = x_base + (1.5 if y_cat > 0 else -1.5)
+            ax.plot([x_base, x_causa], [y_cat, y_causa], color="#2563EB", lw=1.5)
+            ax.text(x_causa + (0.3 if y_cat > 0 else -0.3), y_causa,
+                    f"- {causa}", va="center",
+                    ha="left" if y_cat > 0 else "right",
+                    fontsize=9)
+
+    ax.set_title(texts["ishikawa_title"], fontsize=16, pad=20)
+    st.pyplot(fig)
+    plt.close(fig)
+    
+# Função para exibir 5 Porquês
+def display_five_whys(five_whys, display_mode="columns", texts=None, lang_code="pt"):
+    if not five_whys:
+        st.write(texts["no_five_whys"])
+        return
+
+    if display_mode == "columns":
+        cols = st.columns(min(len(five_whys), 5))
+        for i, why in enumerate(five_whys[:5]):
+            parts = why.split(":", 1)
+            pergunta = parts[0].strip()
+            resposta = parts[1].strip() if len(parts) > 1 else ""
+            with cols[i]:
+                st.markdown(
+                    f"<div class='five-whys-column'><strong>{pergunta}</strong><br>{resposta}</div>",
+                    unsafe_allow_html=True
+                )
+    else:
+        st.write(texts["five_whys_title"])
+        for why in five_whys[:5]:
+            st.write(f"- {why}")
+
+
+# Função para gerar Markdown para download
+def generate_markdown_result(result, lang_code="pt"):
+    texts = {
+        "pt": {"excel_data": "Dados do Excel", "image_analysis": "Análise de Imagens", "raw_response": "Resposta Bruta do Gemini"},
+        "en": {"excel_data": "Excel Data", "image_analysis": "Image Analysis", "raw_response": "Raw Gemini Response"}
+    }
+    markdown = f"# Pasta / Folder: {result['folder']}\n\n"
+    if result["status"] == "error":
+        markdown += f"**Erro / Error**: {result['details']}\n"
+    else:
+        details = result["details"]
+        markdown += f"## {texts[lang_code]['excel_data']}\n"
+        markdown += f"- Área / Area: {details['excel_data'].get('area', 'N/A')}\n"
+        markdown += f"- Equipamento / Equipment: {details['excel_data'].get('equipment', 'N/A')}\n"
+        markdown += f"- Subgrupo / Subgroup: {details['excel_data'].get('subgroup', 'N/A')}\n"
+        markdown += f"- Descrição do problema / Problem description: {details['excel_data'].get('description', 'N/A')}\n"
+        markdown += f"\n## 🎥 Análise de Vídeo / Video Analysis\n{details.get('video_results', 'N/A')}\n"
+        markdown += f"\n## {texts[lang_code]['image_analysis']}\n{details['image_results']}\n"
+        markdown += f"\n## {texts[lang_code]['raw_response']}\n```markdown\n{details['ai_results'].get('raw_response', 'N/A')}\n```"
+    return markdown
+
+def clean_empty_values(data):
+    """
+    Remove recursivamente chaves de dicionários e itens de listas
+    que sejam None, strings vazias ou listas/dicionários vazios.
+    """
+    if isinstance(data, dict):
+        # Filtra o dicionário, chamando a função para cada valor
+        cleaned_dict = {k: clean_empty_values(v) for k, v in data.items() if v is not None and v != "" and v != []}
+        return {k: v for k, v in cleaned_dict.items() if v is not None and v != "" and v != [] and v != {}}
+    
+    if isinstance(data, list):
+        # Filtra a lista, chamando a função para cada item
+        cleaned_list = [clean_empty_values(item) for item in data if item is not None and item != ""]
+        return [item for item in cleaned_list if item is not None and item != "" and item != [] and item != {}]
+        
+    return data
+
+
+def main():
+    load_css()
+
+    with st.sidebar:
+        language = st.selectbox("🌐 Selecione a linguagem / Select language:", ["Português", "English"])
+        lang_code = "pt" if language == "Português" else "en"
+        texts = TEXTS[lang_code]
+        st.title(texts["title"])
+        st.write(texts["folder_instruction"])
+        default_folder = r"G:\Meu Drive\01_PYTHON\ANALISES DE FALHA\ANALISE DE FALHA\pasta_raiz_1"
+        root_folder = st.text_input(texts["root_path_input"], value=default_folder)
+        enable_videos = st.checkbox(texts["video_disabled_ui"], value=False)
+        enable_images = st.checkbox(texts["image_disabled_ui"], value=False)
+
+    # Botão de execução
+    if st.sidebar.button(texts["run_button"]):
+        if not api_key:
+            st.error(texts["no_api_key"])
+            return
+        if not root_folder:
+            st.error(texts["no_folder"])
+            return
+        if not Path(root_folder).exists():
+            st.error(texts["folder_not_found"].format(root_folder))
+            return
+
+        processing_msg = st.empty()
+        processing_msg.write(texts["processing"])
+        logger.info("Iniciando análise" if lang_code == "pt" else "Starting analysis")
+
+        app = FailureAnalysisApp(
+        root_folder=root_folder,
+        gemini_api_key=api_key,
+        enable_images=enable_images,
+        enable_videos=enable_videos,
+        language=lang_code 
+        )
+
+        app.run()
+        results = app.results if app.results else []
+
+        processing_msg.empty()  # remove o texto "Processando..."
+        st.session_state["results"] = results
+
+
+    # Exibição dos resultados
+    if "results" in st.session_state:
+        results = st.session_state["results"]
+        for result in results:
+            st.subheader(f"📁 {texts['folder']}: {result['folder']}")
+            if result["status"] == "error":
+                st.error(f"❌ Erro / Error: {result['details']}")
+                continue
+            details = result["details"]
+            with st.expander(texts["excel_data"]):
+                st.write(f"- {texts['area']}: {details['excel_data'].get('area', 'N/A')}")
+                st.write(f"- {texts['equipment']}: {details['excel_data'].get('equipment', 'N/A')}")
+                st.write(f"- {texts['subgroup']}: {details['excel_data'].get('subgroup', 'N/A')}")
+                st.write(f"- {texts['description']}: {details['excel_data'].get('description', 'N/A')}")
+
+                #EXIBE A ANÁLISE DE VÍDEO
+            with st.expander(texts["video_analysis_title"]):
+                st.markdown(details.get("video_results", texts["no_video_found"]))
+
+                #EXIBE A ANÁLISE DE IMAGEM
+            with st.expander(texts["image_analysis"]):
+                st.write(details['image_results'])
+
+                #EIBE A RAW RESPONSE
+            with st.expander(texts["raw_response"]):
+                st.code(details["ai_results"].get("raw_response", texts["no_raw_response"]))
+
+                #EXIBE O DIAGRAMA DE ISHIKAWA
+            if "ishikawa" in details.get("ai_results", {}):
+                with st.expander(texts["ishikawa_expander"]):
+                    plot_ishikawa(details["ai_results"]["ishikawa"], texts, lang_code)
+
+                # EXIBE OS 5 PORQUÊS
+            if "five_whys" in details["ai_results"]:
+                with st.expander(texts["five_whys_expander"]):
+                    display_five_whys(details["ai_results"]["five_whys"], "columns", texts, lang_code)
+
+            # Expander para o Histórico Bruto Encontrado
+            if details.get("broad_history_found"):
+                
+                history_count = len(details['broad_history_found'])
+                expander_title = texts["broad_history_expander"].format(count=history_count)
+                
+                with st.expander(expander_title):
+                    for i, failure in enumerate(details["broad_history_found"]):
+              
+                        analysis_title = texts["historical_analysis_title"].format(index=i+1)
+                        st.markdown(analysis_title)
+                        
+                        cleaned_failure_data = clean_empty_values(failure)
+                        st.json(cleaned_failure_data, expanded=True)
+                        st.divider()
+
+                # exibir o histórico correlacionado pela IA
+            if details.get("refined_history"):
+                with st.expander(texts["history_expander"]):
+                    st.markdown(details["refined_history"])
+
+               #EXIBE OS TOKENS
+            with st.expander("📏 Tokens"):
+                token_details = result.get("token_details", {})
+
+                # Totais simplificados
+                input_tokens = token_details.get("prompt_tokens", 0) + token_details.get("history_input_tokens", 0)
+                output_tokens = token_details.get("response_tokens", 0) + token_details.get("history_output_tokens", 0)
+
+                st.write(f"**{texts['tokens_input']}** {input_tokens}")
+                st.write(f"**{texts['tokens_output']}** {output_tokens}")
+
+                # Custo estimado
+                input_cost = input_tokens / 1000 * 0.000125
+                output_cost = output_tokens / 1000 * 0.000375
+                total_cost = input_cost + output_cost
+
+                st.markdown(f"**{texts['analysis_cost']}** US$ {total_cost:.6f}")
+
+                # Verificação do limite de prompt final
+                if token_details.get("prompt_tokens", 0) <= 30000:
+                    st.success(texts["token_ok"])
+                else:
+                    st.warning(texts["token_exceeded"])
+
+
+            markdown_content = generate_markdown_result(result, lang_code)
+            st.download_button(
+                label=texts["download_button"],
+                data=markdown_content,
+                file_name=f"resultado_{result['folder'].replace('/', '_')}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+                mime="text/markdown"
+            )
+
+        st.success(texts["success"])
+
+if __name__ == "__main__":
+    main()

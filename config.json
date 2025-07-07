@@ -1,0 +1,5 @@
+{
+  "gemini_api_key": "AIzaSyBkELn-SvOqZah7aguKFd-AssAtBJEOdmE",
+  "google_credentials_path": "vertex-key.json",
+  "gcp_project": "gen-lang-client-0221999486"
+}
