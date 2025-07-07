@@ -1,9 +1,3 @@
-Com certeza\! Um bom `README.md` é a porta de entrada para qualquer projeto. Ele ajuda outros desenvolvedores (e até você mesmo no futuro) a entenderem o propósito, a estrutura e como utilizar a aplicação.
-
-Com base em todos os arquivos e na evolução do nosso trabalho, gerei um `README.md` completo e profissional para o seu projeto.
-
------
-
 ### README.md
 
 ````markdown
