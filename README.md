@@ -35,6 +35,29 @@ O aplicativo segue um fluxo de trabalho em múltiplos estágios para garantir um
 5.  **Análise Final:** O modelo de IA principal (Gemini 2.5 Pro) recebe um dossiê completo contendo os dados do Excel, as análises de mídias e o histórico já refinado para gerar a análise de causa raiz.
 6.  **Geração do Relatório:** O `ReportGenerator` formata a saída da IA em um arquivo `.md` estruturado.
 
+```mermaid
+sequenceDiagram
+    participant U as Usuário
+    participant FA as Aplicativo
+    participant ER as LeitorExcel
+    participant MA as AnalisadorMidia
+    participant HM as HistoryManager
+    participant AIP as IA Gemini
+    participant RG as ReportGenerator
+
+    U->>FA: Seleciona pasta
+    FA->>ER: Lê Excel
+    FA->>MA: Analisa imagens/vídeos
+    FA->>HM: Busca histórico (RAG 1)
+    HM-->>FA: Falhas similares
+    FA->>HM: Refinamento (RAG 2)
+    HM-->>FA: Top 3 casos
+    FA->>AIP: Análise final
+    AIP-->>FA: Resposta
+    FA->>RG: Gera relatório
+    RG-->>U: Relatório final
+```
+
 ---
 
 ## 🛠️ Tecnologias Utilizadas
