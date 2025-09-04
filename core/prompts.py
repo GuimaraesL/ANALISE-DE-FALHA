@@ -1,4 +1,4 @@
-# core/prompts.py responsavel por criar prompts
+# core/prompts.py
 import re
 
 def intro(language="pt"):
