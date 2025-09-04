@@ -1,4 +1,5 @@
-﻿# app.py
+# app.py
+import textwrap
 import streamlit as st
 from pathlib import Path
 import os
@@ -9,9 +10,9 @@ import matplotlib.patches as patches
 import matplotlib.path as mpath
 from datetime import datetime
 from ui.texts import TEXTS  
-from core.prompts import format_ishikawa, format_5whys, format_list
 from core.failure_analysis_app import FailureAnalysisApp
 from core.config_loader import load_config
+
 
 config = load_config()
 
@@ -20,7 +21,7 @@ if credentials_path and Path(credentials_path).exists():
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
     logging.info(f"Credenciais do Google Cloud carregadas de: {credentials_path}")
 else:
-    # Emite um aviso se o arquivo não for encontrado, pois a análise de vídeo falhará.
+    # Emite um aviso se o arquivo não for encontrado.
     st.warning(f"Arquivo de credenciais '{credentials_path}' não encontrado. A análise de vídeo pode falhar.")
 
 api_key = config.get("gemini_api_key")
@@ -28,15 +29,6 @@ api_key = config.get("gemini_api_key")
 # Ajustar o PYTHONPATH para incluir o diretório raiz
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-try:
-    from core.excel_reader import ExcelReader
-    from core.image_analyzer import ImageAnalyzer
-    from core.ai_processor import AIProcessor
-    from core.report_generator import ReportGenerator
-except ModuleNotFoundError as e:
-    st.error(f"❌ Erro ao importar módulos: {e}. Verifique se o diretório 'core' existe e contém '__init__.py'.")
-    logging.error(f"Erro ao importar módulos: {e}")
-    st.stop()
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -51,10 +43,9 @@ def load_css():
     else:
         st.warning("⚠️ Arquivo styles.css não encontrado. Usando estilo padrão.")
 
-# Função aprimorada com cabeça de peixe
+
 
 def plot_ishikawa(ishikawa_data, texts, lang_code="pt"):
-
 
     fig, ax = plt.subplots(figsize=(16, 10))
     ax.set_xlim(0, 22)
@@ -97,8 +88,15 @@ def plot_ishikawa(ishikawa_data, texts, lang_code="pt"):
             y_causa = y_cat + sinal * offset
             x_causa = x_base + (1.5 if y_cat > 0 else -1.5)
             ax.plot([x_base, x_causa], [y_cat, y_causa], color="#2563EB", lw=1.5)
+
+            # >>> NOVO: Limpa o texto da causa antes de plotar <<<
+            causa_limpa = causa.strip(" []")
+
+            # Quebra de linha no texto da causa já limpo
+            wrapped_text = textwrap.fill(f"- {causa_limpa}", width=120)
+
             ax.text(x_causa + (0.3 if y_cat > 0 else -0.3), y_causa,
-                    f"- {causa}", va="center",
+                    wrapped_text, va="center",
                     ha="left" if y_cat > 0 else "right",
                     fontsize=9)
 
@@ -131,24 +129,55 @@ def display_five_whys(five_whys, display_mode="columns", texts=None, lang_code="
 
 # Função para gerar Markdown para download
 def generate_markdown_result(result, lang_code="pt"):
-    texts = {
-        "pt": {"excel_data": "Dados do Excel", "image_analysis": "Análise de Imagens", "raw_response": "Resposta Bruta do Gemini"},
-        "en": {"excel_data": "Excel Data", "image_analysis": "Image Analysis", "raw_response": "Raw Gemini Response"}
-    }
+    texts = TEXTS[lang_code]
     markdown = f"# Pasta / Folder: {result['folder']}\n\n"
+
     if result["status"] == "error":
-        markdown += f"**Erro / Error**: {result['details']}\n"
+        return markdown + f"**Erro / Error**: {result['details']}\n"
+
+    details = result.get("details", {})
+
+    # Excel
+    markdown += f"## {texts['excel_data']}\n"
+    if "excel_data" in details:
+        markdown += f"- {texts['area']}: {details['excel_data'].get('area', 'N/A')}\n"
+        markdown += f"- {texts['equipment']}: {details['excel_data'].get('equipment', 'N/A')}\n"
+        markdown += f"- {texts['subgroup']}: {details['excel_data'].get('subgroup', 'N/A')}\n"
+        markdown += f"- {texts['description']}: {details['excel_data'].get('description', 'N/A')}\n"
     else:
-        details = result["details"]
-        markdown += f"## {texts[lang_code]['excel_data']}\n"
-        markdown += f"- Área / Area: {details['excel_data'].get('area', 'N/A')}\n"
-        markdown += f"- Equipamento / Equipment: {details['excel_data'].get('equipment', 'N/A')}\n"
-        markdown += f"- Subgrupo / Subgroup: {details['excel_data'].get('subgroup', 'N/A')}\n"
-        markdown += f"- Descrição do problema / Problem description: {details['excel_data'].get('description', 'N/A')}\n"
-        markdown += f"\n## 🎥 Análise de Vídeo / Video Analysis\n{details.get('video_results', 'N/A')}\n"
-        markdown += f"\n## {texts[lang_code]['image_analysis']}\n{details['image_results']}\n"
-        markdown += f"\n## {texts[lang_code]['raw_response']}\n```markdown\n{details['ai_results'].get('raw_response', 'N/A')}\n```"
+        markdown += "⚠️ Dados do Excel não disponíveis.\n"
+
+    # Mídias
+    markdown += f"\n## {texts['video_analysis_title']}\n{details.get('video_results', 'N/A')}\n"
+    markdown += f"\n## {texts['image_analysis']}\n{details.get('image_results', 'N/A')}\n"
+
+    # Correlação histórica (refined_history)
+    refined_history = details.get("refined_history", "").strip()
+    if refined_history:
+        markdown += f"\n## {texts['correlation_title_md']}\n{refined_history}\n"
+
+    # Raw response
+    markdown += f"\n## {texts['raw_response']}\n```markdown\n{details.get('ai_results', {}).get('raw_response', 'N/A')}\n```"
+
+    # Tokens
+    tokens = result.get("token_details", {})
+    input_tokens = tokens.get("prompt_tokens", 0) + tokens.get("history_input_tokens", 0)
+    output_tokens = (
+        tokens.get("response_tokens", 0) +
+        tokens.get("history_output_tokens", 0) +
+        tokens.get("media_output_tokens", 0)
+    )
+    total_tokens = tokens.get("total", input_tokens + output_tokens)
+
+    markdown += f"\n## {texts['tokens_title_md']}\n"
+    markdown += f"- {texts['tokens_input']} **{input_tokens}**\n"
+    markdown += f"- {texts['tokens_output']} **{output_tokens}**\n"
+    markdown += f"- {texts['token_total']} **{total_tokens}**\n"
+    total_cost = total_tokens / 1000 * 0.0115
+    markdown += f"\n**{texts['analysis_cost']}** US$ {total_cost:.6f}\n"
+
     return markdown
+
 
 def clean_empty_values(data):
     """
@@ -177,7 +206,7 @@ def main():
         texts = TEXTS[lang_code]
         st.title(texts["title"])
         st.write(texts["folder_instruction"])
-        default_folder = r"G:\Meu Drive\01_PYTHON\ANALISES DE FALHA\ANALISE DE FALHA\pasta_raiz_1"
+        default_folder = r"G:\Meu Drive\01_PYTHON\02_ARQUIVOS PARA TESTES\AF\TESTES\TESTES RAFA"
         root_folder = st.text_input(texts["root_path_input"], value=default_folder)
         enable_videos = st.checkbox(texts["video_disabled_ui"], value=False)
         enable_images = st.checkbox(texts["image_disabled_ui"], value=False)
@@ -277,14 +306,19 @@ def main():
 
                 # Totais simplificados
                 input_tokens = token_details.get("prompt_tokens", 0) + token_details.get("history_input_tokens", 0)
-                output_tokens = token_details.get("response_tokens", 0) + token_details.get("history_output_tokens", 0)
+                output_tokens = (
+                    token_details.get("response_tokens", 0) +
+                    token_details.get("history_output_tokens", 0) +
+                    token_details.get("media_output_tokens", 0)
+                )
+
 
                 st.write(f"**{texts['tokens_input']}** {input_tokens}")
                 st.write(f"**{texts['tokens_output']}** {output_tokens}")
 
                 # Custo estimado
-                input_cost = input_tokens / 1000 * 0.000125
-                output_cost = output_tokens / 1000 * 0.000375
+                input_cost = input_tokens / 1000 * 0.0115
+                output_cost = output_tokens / 1000 * 0.0115
                 total_cost = input_cost + output_cost
 
                 st.markdown(f"**{texts['analysis_cost']}** US$ {total_cost:.6f}")
