@@ -1,4 +1,4 @@
-# core/failure_analysis_app.py responsavel por orquestrar a analise de falhas
+# core/failure_analysis_app.py
 from asyncio.log import logger
 import os
 from pathlib import Path
