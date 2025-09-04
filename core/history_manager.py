@@ -1,4 +1,4 @@
-﻿# core/history_manager.py
+# core/history_manager.py
 import json
 from pathlib import Path
 import logging
@@ -28,9 +28,7 @@ class HistoryManager:
         Agora também lida com valores que não são strings.
         """
         if not isinstance(text, str):
-            # Converte para string antes de processar para evitar erros
             text = str(text)
-        # Ex: "Área de Saída " -> "area de saida"
         return unidecode(text).lower().strip()
 
     def find_related_failures(self, current_failure_data: dict) -> list:
@@ -41,16 +39,12 @@ class HistoryManager:
         if not self.history_data:
             return []
 
-        # Normaliza os critérios da falha atual para uma comparação robusta
-        # Os nomes das chaves aqui ('area', 'equipment') vêm do ExcelReader,
-        # que já os padronizou em inglês. Isso está correto.
         area_atual = self._normalize_text(current_failure_data.get('area'))
         equip_atual = self._normalize_text(current_failure_data.get('equipment'))
         subgrupo_atual = self._normalize_text(current_failure_data.get('subgroup'))
         
         related_failures = []
         for entry in self.history_data:
-            # FIX: Usando as chaves EXATAS do seu arquivo JSON.
             area_hist = self._normalize_text(entry.get('Área'))
             equip_hist = self._normalize_text(entry.get('Equipamento'))
             subgrupo_hist = self._normalize_text(entry.get('Subgrupo'))
@@ -62,3 +56,11 @@ class HistoryManager:
         
         logging.info(f"Filtro amplo e normalizado encontrou {len(related_failures)} falhas relacionadas para '{area_atual}/{equip_atual}/{subgrupo_atual}'.")
         return related_failures
+
+    # --- MÉTODO ADICIONADO PARA CORRIGIR O ERRO ---
+    def is_empty(self) -> bool:
+        """
+        Verifica de forma eficiente se a base de dados de histórico está vazia.
+        Retorna True se não houver registros, False caso contrário.
+        """
+        return not self.history_data
