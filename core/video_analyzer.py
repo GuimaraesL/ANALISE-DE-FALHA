@@ -1,4 +1,4 @@
-# core/video_analyzer.py responsavel por analisar videos
+# core/video_analyzer.py
 from pathlib import Path
 from typing import List
 import time
