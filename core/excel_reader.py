@@ -1,4 +1,4 @@
-#core/excel_reader.py responsavel por ler dados do excel
+#core/excel_reader.py
 from pathlib import Path
 import openpyxl
 import warnings
