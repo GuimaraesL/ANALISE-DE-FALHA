@@ -1,4 +1,4 @@
-﻿# core/config_loader.py
+# core/config_loader.py responsavel por carregar a configuracao
 import json
 from pathlib import Path
 
