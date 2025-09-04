@@ -1,4 +1,4 @@
-﻿# core/image_analyzer.py
+# core/image_analyzer.py responsavel por analisar imagens
 import google.generativeai as genai
 from pathlib import Path
 from typing import List
@@ -27,6 +27,7 @@ class ImageAnalyzer:
                 ".heif": "image/heif",
                 ".bmp": "image/bmp",
                 ".tiff": "image/tiff",
+                ".pdf": "image/pdf"
             }
             
             mime_type = mime_map.get(ext)
