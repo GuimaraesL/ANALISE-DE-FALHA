@@ -1,4 +1,4 @@
-﻿# core/ai_processor.py
+# core/ai_processor.py responsavel por processar prompts com Gemini
 import google.generativeai as genai
 from core.prompts import (intro, input_section, history_section, 
                           task_instructions, format_spec, example_response, 
@@ -99,7 +99,8 @@ class AIProcessor:
             logger.info(f"Resposta bruta do Gemini:\n{response_text}")
 
             ishikawa = {"causes": {
-                "Material": [], "Máquina" if self.language == "pt" else "Machine": [],
+                "Material": [],
+                "Máquina" if self.language == "pt" else "Machine": [],
                 "Método" if self.language == "pt" else "Method": [],
                 "Mão de obra" if self.language == "pt" else "Manpower": [],
                 "Meio ambiente" if self.language == "pt" else "Environment": [],
@@ -129,7 +130,7 @@ class AIProcessor:
                             category, causes = match.groups()
                             category = category.strip()
                             if category in ishikawa["causes"]:
-                                causes_list = [c.strip() for c in causes.split(",") if c.strip()]
+                                causes_list = [c.strip() for c in re.split(r',\s*(?![^()]*\))', causes) if c.strip()]
                                 ishikawa["causes"][category] = causes_list[:2]
                                 if len(causes_list) < 2:
                                     logger.warning(f"Categoria {category} tem menos de 2 causas: {causes_list}")
@@ -201,7 +202,7 @@ class AIProcessor:
 
   
             input_tokens = self.get_last_token_count()
-            output_tokens = estimate_tokens(response_text)
+            output_tokens = self.model.count_tokens(output_text).total_tokens
             total_tokens = input_tokens + output_tokens
 
             result = {
