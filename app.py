@@ -1,5 +1,4 @@
 # app.py
-import textwrap
 import streamlit as st
 from pathlib import Path
 import os
@@ -10,9 +9,9 @@ import matplotlib.patches as patches
 import matplotlib.path as mpath
 from datetime import datetime
 from ui.texts import TEXTS  
+from core.prompts import format_ishikawa, format_5whys, format_list
 from core.failure_analysis_app import FailureAnalysisApp
 from core.config_loader import load_config
-
 
 config = load_config()
 
@@ -21,7 +20,7 @@ if credentials_path and Path(credentials_path).exists():
     os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = credentials_path
     logging.info(f"Credenciais do Google Cloud carregadas de: {credentials_path}")
 else:
-    # Emite um aviso se o arquivo não for encontrado.
+    # Emite um aviso se o arquivo não for encontrado, pois a análise de vídeo falhará.
     st.warning(f"Arquivo de credenciais '{credentials_path}' não encontrado. A análise de vídeo pode falhar.")
 
 api_key = config.get("gemini_api_key")
@@ -29,6 +28,15 @@ api_key = config.get("gemini_api_key")
 # Ajustar o PYTHONPATH para incluir o diretório raiz
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+try:
+    from core.excel_reader import ExcelReader
+    from core.image_analyzer import ImageAnalyzer
+    from core.ai_processor import AIProcessor
+    from core.report_generator import ReportGenerator
+except ModuleNotFoundError as e:
+    st.error(f"❌ Erro ao importar módulos: {e}. Verifique se o diretório 'core' existe e contém '__init__.py'.")
+    logging.error(f"Erro ao importar módulos: {e}")
+    st.stop()
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -43,9 +51,10 @@ def load_css():
     else:
         st.warning("⚠️ Arquivo styles.css não encontrado. Usando estilo padrão.")
 
-
+# Função aprimorada com cabeça de peixe
 
 def plot_ishikawa(ishikawa_data, texts, lang_code="pt"):
+
 
     fig, ax = plt.subplots(figsize=(16, 10))
     ax.set_xlim(0, 22)
@@ -88,15 +97,8 @@ def plot_ishikawa(ishikawa_data, texts, lang_code="pt"):
             y_causa = y_cat + sinal * offset
             x_causa = x_base + (1.5 if y_cat > 0 else -1.5)
             ax.plot([x_base, x_causa], [y_cat, y_causa], color="#2563EB", lw=1.5)
-
-            # >>> NOVO: Limpa o texto da causa antes de plotar <<<
-            causa_limpa = causa.strip(" []")
-
-            # Quebra de linha no texto da causa já limpo
-            wrapped_text = textwrap.fill(f"- {causa_limpa}", width=120)
-
             ax.text(x_causa + (0.3 if y_cat > 0 else -0.3), y_causa,
-                    wrapped_text, va="center",
+                    f"- {causa}", va="center",
                     ha="left" if y_cat > 0 else "right",
                     fontsize=9)
 
@@ -206,7 +208,7 @@ def main():
         texts = TEXTS[lang_code]
         st.title(texts["title"])
         st.write(texts["folder_instruction"])
-        default_folder = r"G:\Meu Drive\01_PYTHON\02_ARQUIVOS PARA TESTES\AF\TESTES\TESTES RAFA"
+        default_folder = r"G:\Meu Drive\01_PYTHON\02_ARQUIVOS PARA TESTES\AF\TESTES"
         root_folder = st.text_input(texts["root_path_input"], value=default_folder)
         enable_videos = st.checkbox(texts["video_disabled_ui"], value=False)
         enable_images = st.checkbox(texts["image_disabled_ui"], value=False)
