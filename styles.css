@@ -1,4 +1,4 @@
-/* Respeita os temas  do Streamlit responsavel pelo estilo do sistema */
+/* Respeita os temas claros e escuros do Streamlit */
 html, body, .stApp {
     font-family: "Segoe UI", sans-serif;
     transition: background-color 0.3s, color 0.3s;
