@@ -1,4 +1,4 @@
-﻿# core/video_analyzer.py
+# core/video_analyzer.py responsavel por analisar videos
 from pathlib import Path
 from typing import List
 import time
@@ -26,7 +26,6 @@ class VideoAnalyzer:
         Inicializa o analisador de vídeo usando o modelo multimodal padrão do Gemini.
         A 'api_key' do __init__ não é mais necessária aqui, mas mantemos para consistência.
         """
-        # Usamos um modelo da família gemini-1.5-pro, que é excelente para multimodal.
         self.model = genai.GenerativeModel("models/gemini-2.5-flash")
         self.language = language
 
