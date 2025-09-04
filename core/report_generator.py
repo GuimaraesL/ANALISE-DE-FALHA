@@ -1,4 +1,4 @@
-# core/report_generator.py responsavel por gerar relatorios
+# core/report_generator.py
 from pathlib import Path
 import os
 from datetime import datetime
