@@ -1,4 +1,4 @@
-﻿# ui/texts.py
+# ui/texts.py responsavel por textos da interface
 
 TEXTS = {
     "pt": {
@@ -35,7 +35,7 @@ TEXTS = {
         "token_section": "📏 Tokens",
         "token_used": "📏 Tokens usados no prompt:",
         "video_analysis_title": "🎥 Análise de Vídeo",
-        "ishikawa_title": "📊 Diagrama de Ishikawa",
+        "ishikawa_title": "Diagrama de Ishikawa",
         "no_five_whys": "🚫 Nenhuma análise fornecida / No analysis provided",
         "five_whys_title": "**🔍 5 Porquês",
         "no_raw_response": "Nenhuma resposta bruta disponível",
@@ -60,7 +60,15 @@ TEXTS = {
         "broad_history_expander": "📚 Histórico Bruto Encontrado ({count} registros)", 
         "historical_analysis_title": "#### Análise Histórica {index}",
         "tokens_input": "🔢 Tokens de Entrada (Input):", 
-        "tokens_output": "📤 Tokens de Saída (Output):"  
+        "tokens_output": "📤 Tokens de Saída (Output):" ,
+        "correlation_title_md": "📚 Correlação com Histórico de Falhas",
+        "reading_excel": "Lendo Excel em: {folder_name}",
+        "analyzing_videos": "Analisando {count} vídeo(s) em: {folder_name}",
+        "analyzing_images": "Analisando {count} imagem(ns) em: {folder_name}",
+
+
+
+
 
 
     },
@@ -98,7 +106,7 @@ TEXTS = {
         "token_section": "📏 Tokens",
         "token_used": "📏 Tokens used in prompt:",
         "video_analysis_title": "🎥 Video Analysis",
-        "ishikawa_title": "📊 Ishikawa Diagram",
+        "ishikawa_title": "Ishikawa Diagram",
         "no_five_whys": "🚫 No analysis provided",
         "five_whys_title": "**🔍 5 Whys**",
         "no_raw_response": "No raw response available",
@@ -123,7 +131,15 @@ TEXTS = {
         "broad_history_expander": "📚 Raw History Found ({count} records)", 
         "historical_analysis_title": "#### Historical Analysis {index}",
          "tokens_input": "🔢 Input Tokens:", 
-        "tokens_output": "📤 Output Tokens:"  
+        "tokens_output": "📤 Output Tokens:" ,
+        "correlation_title_md": "📚 Failure History Correlation",
+        "reading_excel": "Reading Excel in: {folder_name}",
+        "analyzing_videos": "Analyzing {count} video(s) in: {folder_name}",
+        "analyzing_images": "Analyzing {count} image(s) in: {folder_name}",
+
+
+
+
 
         
     }
