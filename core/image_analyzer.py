@@ -1,4 +1,4 @@
-# core/image_analyzer.py responsavel por analisar imagens
+# core/image_analyzer.py
 import google.generativeai as genai
 from pathlib import Path
 from typing import List
