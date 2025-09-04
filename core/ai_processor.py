@@ -1,4 +1,4 @@
-# core/ai_processor.py responsavel por processar prompts com Gemini
+# core/ai_processor.py
 import google.generativeai as genai
 from core.prompts import (intro, input_section, history_section, 
                           task_instructions, format_spec, example_response, 
@@ -99,8 +99,7 @@ class AIProcessor:
             logger.info(f"Resposta bruta do Gemini:\n{response_text}")
 
             ishikawa = {"causes": {
-                "Material": [],
-                "Máquina" if self.language == "pt" else "Machine": [],
+                "Material": [], "Máquina" if self.language == "pt" else "Machine": [],
                 "Método" if self.language == "pt" else "Method": [],
                 "Mão de obra" if self.language == "pt" else "Manpower": [],
                 "Meio ambiente" if self.language == "pt" else "Environment": [],
@@ -130,7 +129,7 @@ class AIProcessor:
                             category, causes = match.groups()
                             category = category.strip()
                             if category in ishikawa["causes"]:
-                                causes_list = [c.strip() for c in re.split(r',\s*(?![^()]*\))', causes) if c.strip()]
+                                causes_list = [c.strip() for c in causes.split(",") if c.strip()]
                                 ishikawa["causes"][category] = causes_list[:2]
                                 if len(causes_list) < 2:
                                     logger.warning(f"Categoria {category} tem menos de 2 causas: {causes_list}")
