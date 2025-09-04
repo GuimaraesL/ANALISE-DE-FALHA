@@ -1,4 +1,4 @@
-# core/history_manager.py
+# core/history_manager.py responsavel por gerenciar o historico de falhas
 import json
 from pathlib import Path
 import logging
