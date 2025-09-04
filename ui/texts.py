@@ -1,4 +1,4 @@
-# ui/texts.py responsavel por textos da interface
+# ui/texts.py
 
 TEXTS = {
     "pt": {
@@ -35,7 +35,7 @@ TEXTS = {
         "token_section": "📏 Tokens",
         "token_used": "📏 Tokens usados no prompt:",
         "video_analysis_title": "🎥 Análise de Vídeo",
-        "ishikawa_title": "Diagrama de Ishikawa",
+        "ishikawa_title": "📊 Diagrama de Ishikawa",
         "no_five_whys": "🚫 Nenhuma análise fornecida / No analysis provided",
         "five_whys_title": "**🔍 5 Porquês",
         "no_raw_response": "Nenhuma resposta bruta disponível",
@@ -106,7 +106,7 @@ TEXTS = {
         "token_section": "📏 Tokens",
         "token_used": "📏 Tokens used in prompt:",
         "video_analysis_title": "🎥 Video Analysis",
-        "ishikawa_title": "Ishikawa Diagram",
+        "ishikawa_title": "📊 Ishikawa Diagram",
         "no_five_whys": "🚫 No analysis provided",
         "five_whys_title": "**🔍 5 Whys**",
         "no_raw_response": "No raw response available",
