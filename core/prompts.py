@@ -1,4 +1,4 @@
-﻿# core/prompts.py
+# core/prompts.py responsavel por criar prompts
 import re
 
 def intro(language="pt"):
@@ -67,6 +67,11 @@ def build_history_refinement_prompt(current_failure_description: str, broad_hist
     """
     Cria o prompt para a IA refinar a lista de falhas históricas, agora com todos os detalhes.
     """
+    def extract_date(when_value: str) -> str:
+        """Extrai a data no formato dd/mm/aaaa de uma string como '14/12/202215:45:14'"""
+        match = re.match(r"(\d{2}/\d{2}/\d{4})", when_value)
+        return match.group(1) if match else "N/A"
+
     history_texts = []
     for i, failure in enumerate(broad_history):
         # Usando as chaves EXATAS do arquivo JSON
@@ -77,11 +82,13 @@ def build_history_refinement_prompt(current_failure_description: str, broad_hist
         root_cause = ", ".join(root_cause_list) if root_cause_list else "N/A"
         ishikawa = format_ishikawa(failure.get("Ishikawa"))
         action_plan = format_list(failure.get("Plano de Ação"))
+        date_failure = extract_date(failure.get("Quando",""))
 
         # Formatação bilíngue dos dados históricos
         if language == 'pt':
             text = f"""---
      **Falha Histórica {i+1}**
+     **Data da Ocorrência:**{date_failure}
       - **Descrição do Problema:** {description}
       - **Ações de Contenção Aplicadas:** {containment_action}
       - **Análise dos 5 Porquês (Resumo):**
@@ -114,6 +121,7 @@ def build_history_refinement_prompt(current_failure_description: str, broad_hist
     **Contexto:** Estou analisando a seguinte falha: "{current_failure_description}"
 
     **Importante:** As falhas históricas a seguir **não são necessariamente idênticas** à falha atual. Seu papel é **identificar correlações técnicas relevantes**, como causas comuns, padrões de falha, modos de desgaste ou ações de manutenção que possam ajudar a compreender melhor o caso atual.
+    caso você encontre a mesma falha com descrições identicas, aponte isso, mas não utilize como parte das 3 falhas historicas mais relevantes.
 
     **Dados Históricos:**  
     {formatted_history}
@@ -128,7 +136,14 @@ def build_history_refinement_prompt(current_failure_description: str, broad_hist
 
     **Formato OBRIGATÓRIO da Resposta:**
     - **Falha Histórica [número]:** [Resumo da falha selecionada]
-      - **Relevância:** [Explicação técnica da similaridade/correlação]
+
+    - **Relevância:** [Explicação técnica da similaridade/correlação]
+
+    - **Dados Relevantes:** [A falha historica ocorreu na data:{date_failure}]
+        [causa raiz]
+        [planos de ação]
+
+
     """
 
     else:
@@ -138,9 +153,10 @@ def build_history_refinement_prompt(current_failure_description: str, broad_hist
     **Context:** I am analyzing the following failure:
     - **Current Failure:** "{current_failure_description}"
 
-    **Important:** The following historical failures are **not necessarily identical** to the current one. Your role is to identify **technical correlations** such as recurring causes, similar failure modes, maintenance strategies, or contextual similarities that may help interpret the current issue.
+        Important: The following historical failures are not necessarily identical to the current failure. Their purpose is to identify relevant technical correlations, such as common causes, failure patterns, wear modes, or maintenance actions that may help better understand the current case.
+        If you find the same failure with identical descriptions, point it out, but do not include it as one of the three most relevant historical failures.
 
-    **Detailed Historical Data:**  
+            **Detailed Historical Data:**  
     {formatted_history}
 
     ---
@@ -156,6 +172,9 @@ def build_history_refinement_prompt(current_failure_description: str, broad_hist
     **MANDATORY Response Format (use this exact format):**
     - **Historical Failure [No.]:** [Description of the selected historical failure, translated if needed]
       - **Relevance:** [Brief explanation of technical similarity or insight]
+    Relevant Data: [The historical failure occurred on: {date_failure}]
+         [root cause]
+         [action plans]
     """
 
 def history_section(refined_history_text: str, language="pt") -> str:
