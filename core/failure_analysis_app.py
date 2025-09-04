@@ -1,4 +1,4 @@
-# core/failure_analysis_app.py
+# core/failure_analysis_app.py responsavel por orquestrar a analise de falhas
 from asyncio.log import logger
 import os
 from pathlib import Path
@@ -7,6 +7,7 @@ from core.image_analyzer import ImageAnalyzer
 from core.ai_processor import AIProcessor, estimate_tokens
 from core.report_generator import ReportGenerator
 from core.video_analyzer import VideoAnalyzer
+from core.pdf_as_image_converter import PDFAsImageConverter
 import streamlit as st
 from core.config_loader import load_config
 from ui.texts import TEXTS
@@ -19,7 +20,7 @@ from datetime import datetime
 config = load_config()
 
 # FIX: Listas de extensões para facilitar a manutenção
-IMAGE_EXTENSIONS = ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.heic", "*.heif", "*.bmp", "*.tiff"]
+IMAGE_EXTENSIONS = ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.heic", "*.heif", "*.bmp", "*.tiff", ".pdf"]
 VIDEO_EXTENSIONS = ["*.mp4", "*.mov", "*.avi", "*.wmv", "*.mkv", "*.webm"]
 
 
@@ -31,6 +32,7 @@ class FailureAnalysisApp:
         self.enable_videos = enable_videos
         self.history_manager = HistoryManager("extracted_data.json")
         self.language = language
+        self.pdf_converter = PDFAsImageConverter()
         self.excel_reader = ExcelReader()
         self.image_analyzer = ImageAnalyzer(gemini_api_key, language)
         self.video_analyzer = VideoAnalyzer(gemini_api_key, language)
@@ -84,19 +86,28 @@ class FailureAnalysisApp:
         if not excel_files:
             return {"folder": folder_name, "status": "error", "details": "Nenhum arquivo Excel encontrado."}, processed_count
         
-        status_text.info(f"Lendo Excel em: {folder_name}")
+        status_text.info(texts["reading_excel"].format(folder_name=folder_name))
         excel_result = self.excel_reader.read_excel(excel_files[0])
         processed_count += 1
         progress_bar.progress(processed_count / total_items)
         if excel_result["status"] == "error":
-            return {"folder": folder_name, "status": "error", "details": excel_result["error"]}, processed_count
+            return {"folder": folder_name, "status": "error", "details": excel_result["error"]}, 
+        processed_count
+
+
+        pdf_files = self._find_files(folder_path, ["*.pdf"])
+        pdf_images = []
+        for pdf in pdf_files:
+                pdf_images.extend(self.pdf_converter.convert(pdf))
+
+
 
         # --- Processa Vídeos ---
         video_results = ""
         if self.enable_videos:
             video_files = self._find_files(folder_path, VIDEO_EXTENSIONS)
             if video_files:
-                status_text.info(f"Analisando {len(video_files)} vídeo(s) em: {folder_name}")
+                status_text.info(texts["analyzing_videos"].format(count=len(video_files), folder_name=folder_name))
                 video_results = self.video_analyzer.analyze_videos(video_files)
                 processed_count += len(video_files)
                 progress_bar.progress(processed_count / total_items)
@@ -105,16 +116,22 @@ class FailureAnalysisApp:
         
         image_results = ""
         if self.enable_images:
-            image_files = self._find_files(folder_path, IMAGE_EXTENSIONS)
+            image_files = self._find_files(folder_path, IMAGE_EXTENSIONS) + pdf_images
             if image_files:
-                status_text.info(f"Analisando {len(image_files)} imagem(ns) em: {folder_name}")
+                status_text.info(texts["analyzing_images"].format(count=len(image_files), folder_name=folder_name))
                 image_results = self.image_analyzer.analyze_images(image_files)
                 processed_count += len(image_files)
                 progress_bar.progress(processed_count / total_items)
 
         
         raw_media_analyses = f"{image_results}\n\n{video_results}".strip()
-        media_tokens = estimate_tokens(raw_media_analyses)
+        media_tokens = self.ai_processor.model.count_tokens(raw_media_analyses).total_tokens if raw_media_analyses.strip() else 0
+
+        media_output_tokens = 0
+        if image_results.strip():
+            media_output_tokens += self.ai_processor.model.count_tokens(image_results).total_tokens
+        if video_results.strip():
+            media_output_tokens += self.ai_processor.model.count_tokens(video_results).total_tokens
 
 
         # Etapa 3: RAG - Estágio 1 (Filtro por Código)
@@ -123,7 +140,8 @@ class FailureAnalysisApp:
 
         # Etapa 4: RAG - Estágio 2 (Refinamento Semântico com IA)
         refined_history_text = ""
-        refined_history_tokens = 0
+        history_tokens_data = {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
         if broad_historical_failures:
             status_text.info(
                 texts["history_refining"].format(count=len(broad_historical_failures))
@@ -149,7 +167,7 @@ class FailureAnalysisApp:
         progress_bar.progress(processed_count / total_items)
         
         self._log_prompt(folder_name, final_prompt, refined_history_text)
-        print("📊 TOKENS DEBUG >>>", media_tokens, refined_history_tokens, ai_results.get("token_count", 0))
+     
 
 
         # --- Etapa 6: Empacotar Resultados ---
@@ -166,12 +184,14 @@ class FailureAnalysisApp:
             },
             "token_details": {
                 "media_tokens": media_tokens,
+                "media_output_tokens": media_output_tokens,
                 "history_input_tokens": history_tokens_data["input_tokens"],
                 "history_output_tokens": history_tokens_data["output_tokens"],
                 "history_total": history_tokens_data["total_tokens"],
                 "prompt_tokens": ai_results.get("token_details", {}).get("input_tokens", 0),
                 "response_tokens": ai_results.get("token_details", {}).get("output_tokens", 0),
-                "total": media_tokens + history_tokens_data["total_tokens"] + ai_results.get("token_details", {}).get("total_tokens", 0)
+                "total": media_tokens + media_output_tokens + history_tokens_data["total_tokens"] + ai_results.get("token_details", {}).get("total_tokens", 0)
+
             }
 
             }
@@ -202,11 +222,19 @@ class FailureAnalysisApp:
         total_items = 0
         for folder in folders_to_process:
             total_items += len(list(folder.glob("*.xlsx")))
-            if self.enable_images:
-                total_items += len(self._find_files(folder, IMAGE_EXTENSIONS))
+
+            # Vídeos
             if self.enable_videos:
                 total_items += len(self._find_files(folder, VIDEO_EXTENSIONS))
-            total_items += 1 
+
+            # Imagens (com PDF como imagem)
+            image_files = self._find_files(folder, IMAGE_EXTENSIONS)
+            pdf_files = self._find_files(folder, ["*.pdf"])
+            total_pdf_pages = sum(len(self.pdf_converter.convert(pdf)) for pdf in pdf_files)
+            total_items += len(image_files) + total_pdf_pages
+
+            # Análise final
+            total_items += 1
 
         st.info(texts["total_items"].format(total=total_items))
         progress_bar = st.progress(0.0)
@@ -226,4 +254,5 @@ class FailureAnalysisApp:
         progress_bar.empty()
 
         self.report_generator.generate_report(self.results)
+        self.pdf_converter.cleanup()
         logger.info("✅ Processamento geral concluído.")
