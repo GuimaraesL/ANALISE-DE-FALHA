@@ -1,6 +1,17 @@
+# Core dependencies
 pandas
 openpyxl
 opencv-python
-google-generativeai
 streamlit
-Unicode
+
+# AI/ML
+google-generativeai
+
+# PDF processing
+pdf2image
+
+# Text processing
+unidecode
+
+# Image processing (included via streamlit, but listed for clarity)
+pillow
