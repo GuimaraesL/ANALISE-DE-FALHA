@@ -65,7 +65,65 @@ h2, .stApp h2, .st-subheader {
     padding: 10px;
 }
 
-/* Estilo para colunas dos 5 Porquês */
+/* Estilo aprimorado para os 5 Porquês */
+.five-whys-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 10px 0;
+}
+
+.five-whys-card {
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    background: linear-gradient(135deg, rgba(30, 58, 138, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%);
+    border: 1px solid rgba(37, 99, 235, 0.3);
+    border-radius: 10px;
+    padding: 15px 18px;
+    transition: all 0.3s ease;
+}
+
+.five-whys-card:hover {
+    border-color: rgba(37, 99, 235, 0.6);
+    transform: translateX(5px);
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15);
+}
+
+.five-whys-number {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 16px;
+    color: #FFFFFF;
+    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
+}
+
+.five-whys-content {
+    flex: 1;
+    line-height: 1.6;
+}
+
+.five-whys-question {
+    font-weight: 600;
+    color: #60A5FA;
+    margin-bottom: 6px;
+    font-size: 1rem;
+}
+
+.five-whys-answer {
+    color: inherit;
+    opacity: 0.9;
+    font-size: 0.95rem;
+}
+
+/* Estilo legado para compatibilidade (colunas) */
 .five-whys-column {
     background-color: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.2);

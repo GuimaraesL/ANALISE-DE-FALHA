@@ -105,14 +105,174 @@ def plot_ishikawa(ishikawa_data, texts, lang_code="pt"):
     ax.set_title(texts["ishikawa_title"], fontsize=16, pad=20)
     st.pyplot(fig)
     plt.close(fig)
+
+
+# Função para exibir a resposta bruta de forma estilizada
+def display_raw_response(raw_response: str, show_source: bool = True):
+    """
+    Exibe a resposta bruta da IA de forma visualmente atraente.
+    Divide o conteúdo em seções e aplica estilos diferentes para cada uma.
     
-# Função para exibir 5 Porquês
-def display_five_whys(five_whys, display_mode="columns", texts=None, lang_code="pt"):
+    Args:
+        raw_response: Texto bruto da resposta da IA
+        show_source: Se True, mostra também a aba com código fonte
+    """
+    import html as html_lib
+    import re
+    
+    if not raw_response or not raw_response.strip():
+        st.info("Nenhuma resposta bruta disponível")
+        return
+    
+    # Definir ícones e cores para cada seção
+    section_styles = {
+        "Diagrama de Ishikawa": {"icon": "🐟", "color": "#3B82F6", "bg": "rgba(59, 130, 246, 0.1)"},
+        "5 Porquês": {"icon": "❓", "color": "#8B5CF6", "bg": "rgba(139, 92, 246, 0.1)"},
+        "Plano de Ação": {"icon": "📋", "color": "#10B981", "bg": "rgba(16, 185, 129, 0.1)"},
+        "Conclusão Final": {"icon": "✅", "color": "#F59E0B", "bg": "rgba(245, 158, 11, 0.1)"},
+        "Análise": {"icon": "🔍", "color": "#EC4899", "bg": "rgba(236, 72, 153, 0.1)"},
+        "Causa Raiz": {"icon": "🎯", "color": "#EF4444", "bg": "rgba(239, 68, 68, 0.1)"},
+    }
+    
+    def get_section_style(title):
+        """Retorna o estilo para uma seção baseado no título."""
+        for key, style in section_styles.items():
+            if key.lower() in title.lower():
+                return style
+        return {"icon": "📝", "color": "#6B7280", "bg": "rgba(107, 114, 128, 0.1)"}
+    
+    def render_section(title, content, style):
+        """Renderiza uma seção com estilo de card."""
+        # Escapa HTML no conteúdo
+        escaped_content = html_lib.escape(content.strip())
+        # Converte quebras de linha em <br> e bullets em formatação
+        escaped_content = escaped_content.replace('\n', '<br>')
+        escaped_content = re.sub(r'^- ', '• ', escaped_content)
+        escaped_content = escaped_content.replace('<br>- ', '<br>• ')
+        
+        return f'''
+        <div style="
+            background: {style['bg']};
+            border-left: 4px solid {style['color']};
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        ">
+            <div style="
+                font-size: 1.1rem;
+                font-weight: 600;
+                color: {style['color']};
+                margin-bottom: 12px;
+                display: flex;
+                align-items: center;
+                gap: 8px;
+            ">
+                <span>{style['icon']}</span>
+                <span>{html_lib.escape(title)}</span>
+            </div>
+            <div style="
+                font-size: 0.95rem;
+                line-height: 1.7;
+                opacity: 0.9;
+            ">{escaped_content}</div>
+        </div>
+        '''
+    
+    # Tabs para alternar entre visualização estilizada e código fonte
+    if show_source:
+        tab_styled, tab_source = st.tabs(["📄 Renderizado", "💻 Código Fonte"])
+    else:
+        tab_styled = st.container()
+        tab_source = None
+    
+    with tab_styled:
+        # Tenta dividir em seções usando padrões comuns
+        sections = re.split(r'\*\*([^*]+)\*\*', raw_response)
+        
+        if len(sections) > 1:
+            # Formato com **Título** detectado
+            html_output = ""
+            i = 1
+            while i < len(sections):
+                title = sections[i].strip()
+                content = sections[i + 1] if i + 1 < len(sections) else ""
+                if title and content.strip():
+                    style = get_section_style(title)
+                    html_output += render_section(title, content, style)
+                i += 2
+            
+            if html_output:
+                st.markdown(html_output, unsafe_allow_html=True)
+            else:
+                # Fallback se não conseguiu parsear
+                st.markdown(raw_response)
+        else:
+            # Sem padrão detectado, mostra como markdown simples
+            st.markdown(raw_response)
+    
+    if tab_source:
+        with tab_source:
+            st.code(raw_response, language="markdown")
+    
+# Função para exibir 5 Porquês com layout aprimorado
+def display_five_whys(five_whys, display_mode="cards", texts=None, lang_code="pt"):
+    """
+    Exibe os 5 Porquês com layout moderno em cards verticais.
+    
+    Args:
+        five_whys: Lista de strings no formato "Pergunta: Resposta"
+        display_mode: "cards" (novo layout) ou "columns" (layout legado)
+        texts: Dicionário de textos traduzidos
+        lang_code: Código do idioma ("pt" ou "en")
+    """
+    import html as html_lib
+    
     if not five_whys:
         st.write(texts["no_five_whys"])
         return
 
-    if display_mode == "columns":
+    if display_mode == "cards":
+        # Novo layout: cards verticais com numeração e estilos inline
+        for i, why in enumerate(five_whys[:5]):
+            parts = why.split(":", 1)
+            pergunta = html_lib.escape(parts[0].strip())
+            resposta = html_lib.escape(parts[1].strip()) if len(parts) > 1 else ""
+            
+            card_html = f'''
+            <div style="
+                display: flex;
+                align-items: flex-start;
+                gap: 15px;
+                background: linear-gradient(135deg, rgba(30, 58, 138, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%);
+                border: 1px solid rgba(37, 99, 235, 0.3);
+                border-radius: 10px;
+                padding: 15px 18px;
+                margin-bottom: 12px;
+            ">
+                <div style="
+                    flex-shrink: 0;
+                    width: 36px;
+                    height: 36px;
+                    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
+                    border-radius: 50%;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-weight: bold;
+                    font-size: 16px;
+                    color: #FFFFFF;
+                    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
+                ">{i + 1}</div>
+                <div style="flex: 1; line-height: 1.6;">
+                    <div style="font-weight: 600; color: #60A5FA; margin-bottom: 6px; font-size: 1rem;">{pergunta}</div>
+                    <div style="opacity: 0.9; font-size: 0.95rem;">{resposta}</div>
+                </div>
+            </div>
+            '''
+            st.markdown(card_html, unsafe_allow_html=True)
+    
+    elif display_mode == "columns":
+        # Layout legado: colunas lado a lado
         cols = st.columns(min(len(five_whys), 5))
         for i, why in enumerate(five_whys[:5]):
             parts = why.split(":", 1)
@@ -120,10 +280,11 @@ def display_five_whys(five_whys, display_mode="columns", texts=None, lang_code="
             resposta = parts[1].strip() if len(parts) > 1 else ""
             with cols[i]:
                 st.markdown(
-                    f"<div class='five-whys-column'><strong>{pergunta}</strong><br>{resposta}</div>",
+                    f"<div style='background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 5px; padding: 10px; margin: 5px;'><strong>{pergunta}</strong><br>{resposta}</div>",
                     unsafe_allow_html=True
                 )
     else:
+        # Fallback: lista simples
         st.write(texts["five_whys_title"])
         for why in five_whys[:5]:
             st.write(f"- {why}")
@@ -242,6 +403,9 @@ def main():
 
         processing_msg.empty()  # remove o texto "Processando..."
         st.session_state["results"] = results
+        # Armazena o estado das opções de análise para exibição correta
+        st.session_state["enable_videos"] = enable_videos
+        st.session_state["enable_images"] = enable_images
 
 
     # Exibição dos resultados
@@ -261,15 +425,40 @@ def main():
 
                 #EXIBE A ANÁLISE DE VÍDEO
             with st.expander(texts["video_analysis_title"]):
-                st.markdown(details.get("video_results", texts["no_video_found"]))
+                video_result = details.get("video_results", "")
+                if video_result and video_result.strip():
+                    st.markdown(video_result)
+                else:
+                    # Verifica se foi desabilitado ou simplesmente não encontrado
+                    if not st.session_state.get("enable_videos", False):
+                        st.info(texts["video_disabled"])
+                    else:
+                        st.info(texts["no_video_found"])
 
                 #EXIBE A ANÁLISE DE IMAGEM
             with st.expander(texts["image_analysis"]):
-                st.write(details['image_results'])
+                image_result = details.get("image_results", "")
+                if image_result and str(image_result).strip():
+                    st.write(image_result)
+                else:
+                    # Verifica se foi desabilitado ou simplesmente não encontrado
+                    if not st.session_state.get("enable_images", False):
+                        st.info(texts["image_disabled"])
+                    else:
+                        st.info("Nenhuma análise de imagem encontrada.")
 
-                #EIBE A RAW RESPONSE
+                #EXIBE A RAW RESPONSE
             with st.expander(texts["raw_response"]):
-                st.code(details["ai_results"].get("raw_response", texts["no_raw_response"]))
+                raw_response = details["ai_results"].get("raw_response", texts["no_raw_response"])
+                if raw_response and raw_response.strip():
+                    # Tabs para alternar entre visualização renderizada e código fonte
+                    tab_rendered, tab_source = st.tabs(["📄 Renderizado", "💻 Código Fonte"])
+                    with tab_rendered:
+                        st.markdown(raw_response)
+                    with tab_source:
+                        st.code(raw_response, language="markdown")
+                else:
+                    st.info(texts["no_raw_response"])
 
                 #EXIBE O DIAGRAMA DE ISHIKAWA
             if "ishikawa" in details.get("ai_results", {}):
@@ -279,7 +468,7 @@ def main():
                 # EXIBE OS 5 PORQUÊS
             if "five_whys" in details["ai_results"]:
                 with st.expander(texts["five_whys_expander"]):
-                    display_five_whys(details["ai_results"]["five_whys"], "columns", texts, lang_code)
+                    display_five_whys(details["ai_results"]["five_whys"], "cards", texts, lang_code)
 
             # Expander para o Histórico Bruto Encontrado
             if details.get("broad_history_found"):
