@@ -37,7 +37,10 @@ class DatabaseManager:
         """
         if db_path is None:
             # Caminho padrão na pasta 'data' na raiz do projeto
-            self.db_path = Path(__file__).parent.parent / "data" / "failure_analysis.db"
+            root = Path(__file__).parent.parent
+            data_dir = root / "data"
+            data_dir.mkdir(exist_ok=True) # Garante que a pasta data existe
+            self.db_path = data_dir / "failure_analysis.db"
         else:
             if not isinstance(db_path, Path):
                 raise TypeError("O caminho do banco de dados deve ser um objeto pathlib.Path")

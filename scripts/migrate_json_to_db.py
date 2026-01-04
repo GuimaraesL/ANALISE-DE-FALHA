@@ -9,7 +9,10 @@ sys.path.append(str(Path(__file__).parent.parent))
 from core.database import DatabaseManager
 
 def migrate():
-    json_path = Path("extracted_data.json")
+    # Caminhos ancorados na raiz do projeto
+    root = Path(__file__).parent.parent
+    json_path = root / "data" / "extracted_data.json"
+    
     if not json_path.exists():
         print(f"Erro: Arquivo {json_path} não encontrado.")
         return
@@ -18,7 +21,7 @@ def migrate():
     with open(json_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
-    print(f"Total de registros encontrados: {len(data)}")
+    print(f"Total de registros encontrados no JSON: {len(data)}")
     
     db = DatabaseManager()
     
