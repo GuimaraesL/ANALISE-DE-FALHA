@@ -15,3 +15,6 @@ unidecode
 
 # Image processing (included via streamlit, but listed for clarity)
 pillow
+
+# Plotting
+matplotlib

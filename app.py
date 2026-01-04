@@ -110,106 +110,155 @@ def plot_ishikawa(ishikawa_data, texts, lang_code="pt"):
 # Função para exibir a resposta bruta de forma estilizada
 def display_raw_response(raw_response: str, show_source: bool = True):
     """
-    Exibe a resposta bruta da IA de forma visualmente atraente.
+    Exibe a resposta bruta da IA de forma visualmente atraente com design premium.
     Divide o conteúdo em seções e aplica estilos diferentes para cada uma.
-    
+
     Args:
         raw_response: Texto bruto da resposta da IA
         show_source: Se True, mostra também a aba com código fonte
     """
     import html as html_lib
     import re
-    
+
     if not raw_response or not raw_response.strip():
         st.info("Nenhuma resposta bruta disponível")
         return
-    
-    # Definir ícones e cores para cada seção
-    section_styles = {
-        "Diagrama de Ishikawa": {"icon": "🐟", "color": "#3B82F6", "bg": "rgba(59, 130, 246, 0.1)"},
-        "5 Porquês": {"icon": "❓", "color": "#8B5CF6", "bg": "rgba(139, 92, 246, 0.1)"},
-        "Plano de Ação": {"icon": "📋", "color": "#10B981", "bg": "rgba(16, 185, 129, 0.1)"},
-        "Conclusão Final": {"icon": "✅", "color": "#F59E0B", "bg": "rgba(245, 158, 11, 0.1)"},
-        "Análise": {"icon": "🔍", "color": "#EC4899", "bg": "rgba(236, 72, 153, 0.1)"},
-        "Causa Raiz": {"icon": "🎯", "color": "#EF4444", "bg": "rgba(239, 68, 68, 0.1)"},
-    }
-    
-    def get_section_style(title):
-        """Retorna o estilo para uma seção baseado no título."""
-        for key, style in section_styles.items():
-            if key.lower() in title.lower():
-                return style
-        return {"icon": "📝", "color": "#6B7280", "bg": "rgba(107, 114, 128, 0.1)"}
-    
-    def render_section(title, content, style):
-        """Renderiza uma seção com estilo de card."""
-        # Escapa HTML no conteúdo
-        escaped_content = html_lib.escape(content.strip())
-        # Converte quebras de linha em <br> e bullets em formatação
-        escaped_content = escaped_content.replace('\n', '<br>')
-        escaped_content = re.sub(r'^- ', '• ', escaped_content)
-        escaped_content = escaped_content.replace('<br>- ', '<br>• ')
-        
-        return f'''
-        <div style="
-            background: {style['bg']};
-            border-left: 4px solid {style['color']};
-            border-radius: 8px;
-            padding: 16px 20px;
-            margin-bottom: 16px;
-        ">
-            <div style="
-                font-size: 1.1rem;
-                font-weight: 600;
-                color: {style['color']};
-                margin-bottom: 12px;
-                display: flex;
-                align-items: center;
-                gap: 8px;
-            ">
-                <span>{style['icon']}</span>
-                <span>{html_lib.escape(title)}</span>
-            </div>
-            <div style="
-                font-size: 0.95rem;
-                line-height: 1.7;
-                opacity: 0.9;
-            ">{escaped_content}</div>
-        </div>
-        '''
-    
+
     # Tabs para alternar entre visualização estilizada e código fonte
     if show_source:
-        tab_styled, tab_source = st.tabs(["📄 Renderizado", "💻 Código Fonte"])
+        tab_rendered, tab_source = st.tabs(["📄 Renderizado", "💻 Código Fonte"])
     else:
-        tab_styled = st.container()
+        tab_rendered = st.container()
         tab_source = None
-    
-    with tab_styled:
-        # Tenta dividir em seções usando padrões comuns
+
+    with tab_rendered:
+        # Enhanced premium styling for raw response
+        st.markdown("""
+        <div style="
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 58, 138, 0.9) 100%);
+            border: 2px solid rgba(37, 99, 235, 0.5);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 10px 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            color: #E2E8F0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.7;
+        ">
+        """, unsafe_allow_html=True)
+
+        # Split the response into sections and style each one
         sections = re.split(r'\*\*([^*]+)\*\*', raw_response)
-        
+
         if len(sections) > 1:
             # Formato com **Título** detectado
-            html_output = ""
             i = 1
             while i < len(sections):
-                title = sections[i].strip()
-                content = sections[i + 1] if i + 1 < len(sections) else ""
-                if title and content.strip():
-                    style = get_section_style(title)
-                    html_output += render_section(title, content, style)
+                section_title = sections[i].strip()
+                section_content = sections[i + 1] if i + 1 < len(sections) else ""
+
+                if section_title and section_content.strip():
+                    if "Diagrama de Ishikawa" in section_title:
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+                            border-left: 4px solid #3B82F6;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+                        ">
+                        <h3 style="color: #60A5FA; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">📊 {html_lib.escape(section_title)}</h3>
+                        """, unsafe_allow_html=True)
+                    elif "5 Porquês" in section_title:
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(74, 222, 128, 0.1) 100%);
+                            border-left: 4px solid #22C55E;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+                        ">
+                        <h3 style="color: #4ADE80; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🔍 {html_lib.escape(section_title)}</h3>
+                        """, unsafe_allow_html=True)
+                    elif "Plano de Ação" in section_title:
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(251, 191, 36, 0.1) 100%);
+                            border-left: 4px solid #F59E0B;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+                        ">
+                        <h3 style="color: #FBBF24; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🎯 {html_lib.escape(section_title)}</h3>
+                        """, unsafe_allow_html=True)
+                    elif "Conclusão Final" in section_title:
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(196, 181, 253, 0.1) 100%);
+                            border-left: 4px solid #A855F7;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
+                        ">
+                        <h3 style="color: #C4B5FD; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🏁 {html_lib.escape(section_title)}</h3>
+                        """, unsafe_allow_html=True)
+                    else:
+                        # Outras seções
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(107, 114, 128, 0.2) 0%, rgba(156, 163, 175, 0.1) 100%);
+                            border-left: 4px solid #6B7280;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.15);
+                        ">
+                        <h3 style="color: #9CA3AF; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">📝 {html_lib.escape(section_title)}</h3>
+                        """, unsafe_allow_html=True)
+
+                    # Renderizar conteúdo da seção
+                    lines = section_content.strip().split('\n')
+                    for line in lines:
+                        if line.strip():
+                            if line.startswith('- '):
+                                st.markdown(f"""
+                                <div style="
+                                    background: rgba(255, 255, 255, 0.05);
+                                    border-radius: 6px;
+                                    padding: 8px 12px;
+                                    margin: 5px 0;
+                                    border-left: 3px solid rgba(255, 255, 255, 0.3);
+                                    font-size: 0.95em;
+                                ">
+                                {html_lib.escape(line.strip())}
+                                </div>
+                                """, unsafe_allow_html=True)
+                            else:
+                                st.markdown(f"""
+                                <p style="
+                                    margin: 8px 0;
+                                    padding: 5px 10px;
+                                    background: rgba(255, 255, 255, 0.03);
+                                    border-radius: 4px;
+                                    font-size: 0.95em;
+                                    line-height: 1.6;
+                                ">
+                                {html_lib.escape(line.strip())}
+                                </p>
+                                """, unsafe_allow_html=True)
+
                 i += 2
-            
-            if html_output:
-                st.markdown(html_output, unsafe_allow_html=True)
-            else:
-                # Fallback se não conseguiu parsear
-                st.markdown(raw_response)
         else:
             # Sem padrão detectado, mostra como markdown simples
             st.markdown(raw_response)
-    
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
     if tab_source:
         with tab_source:
             st.code(raw_response, language="markdown")

@@ -233,7 +233,108 @@ A análise da falha recorrente de travamento do rolamento dianteiro do mandril e
     with st.expander("🤖 Resposta Bruta", expanded=True):
         tab_rendered, tab_source = st.tabs(["📄 Renderizado", "💻 Código Fonte"])
         with tab_rendered:
-            st.markdown(mock_raw_response)
+            # Enhanced premium styling for raw response
+            st.markdown("""
+            <div style="
+                background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 58, 138, 0.9) 100%);
+                border: 2px solid rgba(37, 99, 235, 0.5);
+                border-radius: 15px;
+                padding: 25px;
+                margin: 10px 0;
+                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+                backdrop-filter: blur(10px);
+                color: #E2E8F0;
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                line-height: 1.7;
+            ">
+            """, unsafe_allow_html=True)
+            
+            # Split the response into sections and style each one
+            sections = mock_raw_response.split("**")
+            for i, section in enumerate(sections):
+                if section.strip():
+                    if "Diagrama de Ishikawa" in section:
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
+                            border-left: 4px solid #3B82F6;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+                        ">
+                        <h3 style="color: #60A5FA; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">📊 {section.strip()}</h3>
+                        """, unsafe_allow_html=True)
+                    elif "5 Porquês" in section:
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(74, 222, 128, 0.1) 100%);
+                            border-left: 4px solid #22C55E;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+                        ">
+                        <h3 style="color: #4ADE80; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🔍 {section.strip()}</h3>
+                        """, unsafe_allow_html=True)
+                    elif "Plano de Ação" in section:
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(251, 191, 36, 0.1) 100%);
+                            border-left: 4px solid #F59E0B;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
+                        ">
+                        <h3 style="color: #FBBF24; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🎯 {section.strip()}</h3>
+                        """, unsafe_allow_html=True)
+                    elif "Conclusão Final" in section:
+                        st.markdown(f"""
+                        <div style="
+                            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(196, 181, 253, 0.1) 100%);
+                            border-left: 4px solid #A855F7;
+                            padding: 15px 20px;
+                            margin: 15px 0;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
+                        ">
+                        <h3 style="color: #C4B5FD; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🏁 {section.strip()}</h3>
+                        """, unsafe_allow_html=True)
+                    else:
+                        # Content sections
+                        lines = section.strip().split('\n')
+                        for line in lines:
+                            if line.strip():
+                                if line.startswith('- '):
+                                    st.markdown(f"""
+                                    <div style="
+                                        background: rgba(255, 255, 255, 0.05);
+                                        border-radius: 6px;
+                                        padding: 8px 12px;
+                                        margin: 5px 0;
+                                        border-left: 3px solid rgba(255, 255, 255, 0.3);
+                                        font-size: 0.95em;
+                                    ">
+                                    {line.strip()}
+                                    </div>
+                                    """, unsafe_allow_html=True)
+                                else:
+                                    st.markdown(f"""
+                                    <p style="
+                                        margin: 8px 0;
+                                        padding: 5px 10px;
+                                        background: rgba(255, 255, 255, 0.03);
+                                        border-radius: 4px;
+                                        font-size: 0.95em;
+                                        line-height: 1.6;
+                                    ">
+                                    {line.strip()}
+                                    </p>
+                                    """, unsafe_allow_html=True)
+            
+            st.markdown("</div>", unsafe_allow_html=True)
+            
         with tab_source:
             st.code(mock_raw_response, language="markdown")
     
