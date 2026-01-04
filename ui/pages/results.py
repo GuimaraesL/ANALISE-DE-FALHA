@@ -244,10 +244,17 @@ def _parse_refined_history_sections(refined_history: str) -> List[Dict[str, str]
     - **Falha Histórica [número]:** 
     - **Relevância:**
     - **Dados Relevantes:**
+    - Também detecta outros padrões comuns
     """
     sections = []
     
-    # Divide o texto em linhas
+    # Primeiro, tenta detectar seções com markdown **texto**
+    if '**' in refined_history:
+        sections = _parse_markdown_sections(refined_history)
+        if sections:
+            return sections
+    
+    # Se não encontrou seções markdown, tenta parsing por linhas
     lines = refined_history.split('\n')
     current_section = {"title": "Análise de Correlação", "content": []}
     
@@ -256,17 +263,23 @@ def _parse_refined_history_sections(refined_history: str) -> List[Dict[str, str]
         if not line:
             continue
             
-        # Detecta títulos de seção específicos do formato da IA
-        section_patterns = [
-            r'^\*\*Falha Histórica \d+:\*\*',  # **Falha Histórica 1:**
-            r'^\*\*Relevância:\*\*',           # **Relevância:**
-            r'^\*\*Dados Relevantes:\*\*',     # **Dados Relevantes:**
-            r'^- \*\*Falha Histórica \d+:\*\*', # - **Falha Histórica 1:**
-            r'^- \*\*Relevância:\*\*',         # - **Relevância:**
-            r'^- \*\*Dados Relevantes:\*\*',   # - **Dados Relevantes:**
-        ]
-        
-        is_section_title = any(re.match(pattern, line) for pattern in section_patterns)
+        # Detecta títulos de seção - mais abrangente
+        is_section_title = (
+            # Padrões específicos da IA
+            '**Falha Histórica' in line or
+            '**Relevância:' in line or
+            '**Dados Relevantes:' in line or
+            # Padrões gerais
+            (line.startswith('**') and line.endswith('**')) or
+            (line.startswith('**') and ':' in line) or
+            # Linhas curtas que parecem títulos
+            (len(line) < 60 and not line.endswith('.') and not line.endswith('?')) or
+            # Palavras-chave que indicam início de seção
+            any(keyword in line.lower() for keyword in [
+                'análise de correlação', 'falha histórica', 'relevância', 
+                'dados relevantes', 'conclusão', 'recomendação', 'padrão identificado'
+            ])
+        )
         
         if is_section_title:
             # Salva seção anterior se tiver conteúdo
@@ -274,9 +287,8 @@ def _parse_refined_history_sections(refined_history: str) -> List[Dict[str, str]
                 current_section["content"] = '\n'.join(current_section["content"])
                 sections.append(current_section)
             
-            # Nova seção - limpa o título removendo marcadores
-            clean_title = re.sub(r'^[-*]*\s*', '', line)  # Remove - e * do início
-            clean_title = re.sub(r'[:*]*\s*$', '', clean_title)  # Remove : e * do final
+            # Nova seção - limpa o título
+            clean_title = line.replace('**', '').replace(':', '').strip()
             current_section = {"title": clean_title, "content": []}
         else:
             current_section["content"].append(line)
@@ -286,17 +298,31 @@ def _parse_refined_history_sections(refined_history: str) -> List[Dict[str, str]
         current_section["content"] = '\n'.join(current_section["content"])
         sections.append(current_section)
     
-    # Se não encontrou seções estruturadas, tenta uma abordagem mais simples
-    if not sections or len(sections) == 1:
-        # Divide por linhas que contenham palavras-chave importantes
-        fallback_sections = _parse_fallback_sections(refined_history)
-        if fallback_sections:
-            return fallback_sections
-    
     return sections if sections else []
 
 
-def _parse_fallback_sections(refined_history: str) -> List[Dict[str, str]]:
+def _parse_markdown_sections(text: str) -> List[Dict[str, str]]:
+    """
+    Parseia seções markdown do texto da IA.
+    """
+    sections = []
+    
+    # Divide por **titulo**
+    parts = re.split(r'\*\*(.*?)\*\*', text)
+    
+    for i in range(1, len(parts), 2):
+        title = parts[i].strip()
+        # Próximo elemento é o conteúdo (ou vazio se for o último)
+        content = parts[i + 1] if i + 1 < len(parts) else ""
+        content = content.strip()
+        
+        if content:  # Só adiciona se tiver conteúdo
+            sections.append({
+                "title": title,
+                "content": content
+            })
+    
+    return sections
     """
     Parser fallback para quando o formato específico não é detectado.
     Divide o texto em seções menores baseadas em quebras de linha duplas
@@ -355,19 +381,49 @@ def _render_refined_history_section(section: Dict[str, str]) -> None:
         icon = "🎯"
     elif "análise" in title.lower():
         icon = "🔍"
+    elif "falha" in title.lower():
+        icon = "⚠️"
+    elif "relevância" in title.lower():
+        icon = "🎯"
+    elif "dados" in title.lower():
+        icon = "📋"
     
-    # Container da seção
+    # Container da seção com header visual
     st.markdown(f"""
     <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); border-left: 4px solid #22C55E; border-radius: 8px; padding: 15px; margin: 10px 0;">
         <div style="display: flex; align-items: center; margin-bottom: 10px;">
             <span style="font-size: 1.2em; margin-right: 8px;">{icon}</span>
             <h5 style="color: #4ADE80; margin: 0; font-weight: 600;">{html_lib.escape(title)}</h5>
         </div>
-        <div style="color: #E2E8F0; line-height: 1.6;">
-            {html_lib.escape(content)}
-        </div>
     </div>
     """, unsafe_allow_html=True)
+    
+    # Renderiza o conteúdo usando st.markdown para preservar formatação
+    if content.strip():
+        # Adiciona uma pequena indentação para o conteúdo
+        st.markdown(f"""
+        <div style="margin-left: 30px; margin-top: -5px; margin-bottom: 15px;">
+        """, unsafe_allow_html=True)
+        
+        # Divide o conteúdo em linhas e renderiza cada uma
+        lines = content.split('\n')
+        for line in lines:
+            if line.strip():
+                # Preserva formatação básica de markdown
+                if line.startswith('- ') or line.startswith('* '):
+                    # Item de lista
+                    st.markdown(f"• {line[2:].strip()}")
+                elif '**' in line:
+                    # Texto com negrito
+                    st.markdown(line)
+                elif line.strip().isdigit() and len(line.strip()) == 1:
+                    # Possível numeração
+                    st.markdown(line)
+                else:
+                    # Texto normal
+                    st.markdown(line)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 def _extract_section_from_raw_response(raw_response: str, section_title: str) -> str:
