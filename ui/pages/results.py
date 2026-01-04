@@ -240,33 +240,44 @@ def _parse_refined_history_sections(refined_history: str) -> List[Dict[str, str]
     """
     Parseia o histórico correlacionado da IA em seções estruturadas.
     
-    Tenta identificar padrões comuns no texto da IA para criar seções
-    visuais organizadas.
+    Detecta o formato específico usado pela IA no histórico correlacionado:
+    - **Falha Histórica [número]:** 
+    - **Relevância:**
+    - **Dados Relevantes:**
     """
     sections = []
     
-    # Divide por quebras de linha duplas ou marcadores comuns
+    # Divide o texto em linhas
     lines = refined_history.split('\n')
-    current_section = {"title": "Análise Geral", "content": []}
+    current_section = {"title": "Análise de Correlação", "content": []}
     
     for line in lines:
         line = line.strip()
         if not line:
             continue
             
-        # Detecta possíveis títulos de seção (linhas curtas, maiúsculas, com símbolos)
-        if (len(line) < 100 and 
-            (line.isupper() or 
-             any(line.startswith(marker) for marker in ['•', '-', '*', '1.', '2.', '3.']) or
-             any(keyword in line.lower() for keyword in ['análise', 'correlação', 'padrão', 'recomendação', 'conclusão']))):
-            
+        # Detecta títulos de seção específicos do formato da IA
+        section_patterns = [
+            r'^\*\*Falha Histórica \d+:\*\*',  # **Falha Histórica 1:**
+            r'^\*\*Relevância:\*\*',           # **Relevância:**
+            r'^\*\*Dados Relevantes:\*\*',     # **Dados Relevantes:**
+            r'^- \*\*Falha Histórica \d+:\*\*', # - **Falha Histórica 1:**
+            r'^- \*\*Relevância:\*\*',         # - **Relevância:**
+            r'^- \*\*Dados Relevantes:\*\*',   # - **Dados Relevantes:**
+        ]
+        
+        is_section_title = any(re.match(pattern, line) for pattern in section_patterns)
+        
+        if is_section_title:
             # Salva seção anterior se tiver conteúdo
             if current_section["content"]:
                 current_section["content"] = '\n'.join(current_section["content"])
                 sections.append(current_section)
             
-            # Nova seção
-            current_section = {"title": line, "content": []}
+            # Nova seção - limpa o título removendo marcadores
+            clean_title = re.sub(r'^[-*]*\s*', '', line)  # Remove - e * do início
+            clean_title = re.sub(r'[:*]*\s*$', '', clean_title)  # Remove : e * do final
+            current_section = {"title": clean_title, "content": []}
         else:
             current_section["content"].append(line)
     
@@ -275,7 +286,54 @@ def _parse_refined_history_sections(refined_history: str) -> List[Dict[str, str]
         current_section["content"] = '\n'.join(current_section["content"])
         sections.append(current_section)
     
+    # Se não encontrou seções estruturadas, tenta uma abordagem mais simples
+    if not sections or len(sections) == 1:
+        # Divide por linhas que contenham palavras-chave importantes
+        fallback_sections = _parse_fallback_sections(refined_history)
+        if fallback_sections:
+            return fallback_sections
+    
     return sections if sections else []
+
+
+def _parse_fallback_sections(refined_history: str) -> List[Dict[str, str]]:
+    """
+    Parser fallback para quando o formato específico não é detectado.
+    Divide o texto em seções menores baseadas em quebras de linha duplas
+    e tenta identificar títulos.
+    """
+    sections = []
+    
+    # Divide por quebras de linha duplas
+    paragraphs = [p.strip() for p in refined_history.split('\n\n') if p.strip()]
+    
+    for paragraph in paragraphs:
+        lines = paragraph.split('\n')
+        first_line = lines[0].strip()
+        
+        # Se a primeira linha parece um título (curta, sem pontuação final, etc.)
+        if (len(first_line) < 80 and 
+            not first_line.endswith('.') and 
+            not first_line.endswith('?') and
+            not first_line.startswith('-') and
+            any(keyword in first_line.lower() for keyword in 
+                ['análise', 'correlação', 'falha', 'relevância', 'dados', 'conclusão', 'padrão'])):
+            
+            sections.append({
+                "title": first_line,
+                "content": '\n'.join(lines[1:]) if len(lines) > 1 else ""
+            })
+        else:
+            # Adiciona como continuação da seção atual ou cria uma nova
+            if sections:
+                sections[-1]["content"] += "\n\n" + paragraph
+            else:
+                sections.append({
+                    "title": "Análise Geral",
+                    "content": paragraph
+                })
+    
+    return sections
 
 
 def _render_refined_history_section(section: Dict[str, str]) -> None:
