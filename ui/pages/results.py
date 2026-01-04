@@ -57,6 +57,93 @@ def _format_content_html(raw: str) -> str:
     return html
 
 
+def _extract_data_sections(raw: str) -> Dict[str, str]:
+    """Extrai sub-seções de um bloco 'Dados Relevantes'.
+
+    Retorna dicionário com possíveis chaves: intro, root_cause, action_plan, others
+    """
+    if not raw:
+        return {}
+
+    s = raw.replace('**', '')
+    s = s.strip()
+
+    lower = s.lower()
+    # localizar índices de labels
+    idx_cause = None
+    idx_plan = None
+
+    # possíveis rótulos
+    for lbl in ['causa raiz conclu', 'causa raiz', 'causa raiz concluída', 'causa raiz concluida', 'causa raiz:']:
+        p = lower.find(lbl)
+        if p != -1:
+            idx_cause = p
+            break
+
+    for lbl in ['planos de ação', 'planos de ação definido', 'planos de ação definido:', 'planos de ação definido**', 'plano de ação', 'planos de ação:']:
+        p = lower.find(lbl)
+        if p != -1:
+            idx_plan = p
+            break
+
+    result = {'intro': '', 'root_cause': '', 'action_plan': '', 'others': ''}
+
+    if idx_cause is None and idx_plan is None:
+        result['intro'] = s
+        return result
+
+    # define boundaries
+    start = 0
+    if idx_cause is not None and (idx_plan is None or idx_cause < idx_plan):
+        # intro -> cause -> plan
+        result['intro'] = s[start:idx_cause].strip()
+        if idx_plan is not None:
+            result['root_cause'] = s[idx_cause:idx_plan].strip()
+            result['action_plan'] = s[idx_plan:].strip()
+        else:
+            result['root_cause'] = s[idx_cause:].strip()
+    elif idx_plan is not None:
+        # intro -> plan -> maybe cause after
+        result['intro'] = s[start:idx_plan].strip()
+        result['action_plan'] = s[idx_plan:].strip()
+
+    return result
+
+
+def _split_actions_to_list(action_text: str) -> List[str]:
+    """Converte um texto de plano de ação em lista de itens curtos.
+
+    Usa separadores comuns e pontos para segmentar ações.
+    """
+    if not action_text:
+        return []
+
+    # remove rótulos e asteriscos
+    t = action_text.replace('**', '')
+    # remove label 'Planos de Ação' se presente
+    t = re.sub(r'(?i)planos? de a[cç][aã]o[:\s]*', '', t)
+
+    # Primeiro tenta separar por quebras de linha
+    parts = [p.strip() for p in re.split(r'\n|\r|\|', t) if p.strip()]
+    items = []
+    for p in parts:
+        # se contém frases longas, dividir por ; or , or '|'
+        subs = re.split(r';|,\s(?=[A-Z]|[a-z]|\d)', p)
+        for s in subs:
+            s = s.strip(' -:')
+            if s:
+                items.append(s)
+
+    # deduplicate preserving order
+    seen = set()
+    out = []
+    for it in items:
+        if it not in seen:
+            seen.add(it)
+            out.append(it)
+    return out
+
+
 
 # ============================================================================
 # ESTILOS PREMIUM REUTILIZÁVEIS
@@ -431,10 +518,46 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
             date_match = re.search(r'(\d{2}/\d{2}/\d{4})', data_esc)
             if date_match:
                 date_esc = date_match.group(1)
-        data_html = _format_content_html(str(data))
+
+        # Usa o parser que separa intro / causa / plano de ação
+        sections = _extract_data_sections(str(data))
+        intro = sections.get('intro', '').strip()
+        root_cause_in_data = sections.get('root_cause', '').strip()
+        action_plan = sections.get('action_plan', '').strip()
+
         html_parts.append('<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; border-radius: 6px; padding: 10px; margin-top: 10px;">')
         html_parts.append('<div style="color: #FBBF24; font-weight: 600; margin-bottom: 5px;">📋 Dados Relevantes:</div>')
-        html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{data_html}</div>')
+
+        # Intro (texto livre antes das seções)
+        if intro:
+            intro_html = _format_content_html(intro)
+            html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5; margin-bottom: 8px;">{intro_html}</div>')
+
+        # Causa Raiz dentro dos dados (se presente)
+        if root_cause_in_data:
+            rc_html = _format_content_html(root_cause_in_data)
+            html_parts.append('<div style="color: #E2E8F0; margin-bottom: 8px;"><strong>🎯 Causa Raiz:</strong></div>')
+            html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5; margin-bottom: 8px;">{rc_html}</div>')
+
+        # Plano de Ação: normalize e apresenta como lista
+        if action_plan:
+            actions = _split_actions_to_list(action_plan)
+            if actions:
+                html_parts.append('<div style="color: #FBBF24; font-weight: 600; margin-bottom: 6px;">🔧 Plano de Ação Definido:</div>')
+                html_parts.append('<ul style="color: #E2E8F0; margin: 0 0 8px 18px; line-height: 1.5;">')
+                for act in actions:
+                    act_html = _format_content_html(act)
+                    html_parts.append(f'<li style="margin-bottom:6px;">{act_html}</li>')
+                html_parts.append('</ul>')
+            else:
+                # fallback caso não consiga dividir
+                data_html = _format_content_html(str(data))
+                html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{data_html}</div>')
+        else:
+            # Se não foi possível identificar seções, exibe o bloco inteiro
+            data_html = _format_content_html(str(data))
+            html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{data_html}</div>')
+
         html_parts.append('</div>')
     
     # Fecha container principal
