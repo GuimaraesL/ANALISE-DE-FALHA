@@ -94,7 +94,7 @@ class FailureAnalysisApp:
         self.root_folder = Path(root_folder)
         self.enable_images = enable_images
         self.enable_videos = enable_videos
-        self.history_manager = HistoryManager("extracted_data.json")
+        self.history_manager = HistoryManager() # Usa o default dinâmico (data/extracted_data.json)
         self.language = language
         self.pdf_converter = PDFAsImageConverter()
         self.excel_reader = ExcelReader()
@@ -104,11 +104,47 @@ class FailureAnalysisApp:
         
         # Novas dependências V2
         self.engine_version = engine_version
+        
+        # Rotina de Limpeza e Organização (Fail Safe)
+        self._organize_project_files()
+        
         self.db = DatabaseManager()
         self.agent_orchestrator = None # Inicializado sob demanda
         self.api_key = gemini_api_key
         self.report_generator = ReportGenerator(language)
         self.results = []
+
+    def _organize_project_files(self) -> None:
+        """Move arquivos legados da raiz para a pasta data/ de forma automática."""
+        root = Path(__file__).parent.parent
+        data_dir = root / "data"
+        archive_dir = data_dir / "archive"
+        
+        data_dir.mkdir(exist_ok=True)
+        archive_dir.mkdir(exist_ok=True)
+
+        # Arquivos para migrar se encontrados na raiz
+        legacy_files = {
+            "analysis_results.db": data_dir / "failure_analysis.db", # Merge/Rename virtual
+            "failure_analysis.db": data_dir / "failure_analysis.db",
+            "extracted_data.json": data_dir / "extracted_data.json"
+        }
+
+        for filename, target_path in legacy_files.items():
+            source = root / filename
+            if source.exists() and source.resolve() != target_path.resolve():
+                try:
+                    # Se o destino já existe e é diferente, move para o archive
+                    if target_path.exists():
+                        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                        archive_path = archive_dir / f"{filename}_{timestamp}.bak"
+                        shutil.move(str(source), str(archive_path))
+                        logger.info(f"Arquivo legado '{filename}' movido para archive.")
+                    else:
+                        shutil.move(str(source), str(target_path))
+                        logger.info(f"Arquivo '{filename}' migrado para {target_path}")
+                except Exception as e:
+                    logger.warning(f"Não foi possível mover {filename}: {e} (Pode estar em uso)")
 
     def _find_files(self, folder_path: Path, extensions: list) -> list:
         """Função auxiliar para encontrar todos os arquivos com as extensões dadas."""

@@ -226,39 +226,62 @@ class DatabaseManager:
             logger.error(f"Erro ao importar falhas históricas: {e}")
             return False
 
-    def search_unified_history(self, area: str, equipment: str, subgroup: str, limit: int = 10) -> List[Dict[str, Any]]:
+    def search_unified_history(self, area: str = "", equipment: str = "", subgroup: str = "", description_keyword: str = "", limit: int = 15) -> List[Dict[str, Any]]:
         """
-        Busca unificada em:
-        1. Falhas Históricas (Humanas)
-        2. Análises passadas da IA calibradas (Gold Standards)
+        Busca inteligente e dinâmica (Human-Like):
+        1. Tenta match específico pelos filtros estruturados.
+        2. Se os filtros estruturados falharem, permite busca flexível.
+        3. Busca Gold Standards relevantes.
         """
         results = []
         try:
             with self._get_connection() as conn:
                 cursor = conn.cursor()
                 
-                # 1. Busca no histórico legado
-                cursor.execute("""
-                    SELECT 'HUMAN' as source, area, equipment, subgroup, description, root_cause, action_plan, occurrence_date as date
-                    FROM historical_failures
-                    WHERE LOWER(area) LIKE LOWER(?) AND LOWER(equipment) LIKE LOWER(?) AND LOWER(subgroup) LIKE LOWER(?)
-                    LIMIT ?
-                """, (f"%{area}%", f"%{equipment}%", f"%{subgroup}%", limit))
+                # Construção dinâmica da query para Human-Like dynamics
+                query_parts = ["SELECT 'HUMAN' as source, area, equipment, subgroup, description, root_cause, action_plan, occurrence_date as date FROM historical_failures WHERE 1=1"]
+                params = []
+
+                if area:
+                    query_parts.append("AND LOWER(area) LIKE LOWER(?)")
+                    params.append(f"%{area}%")
+                if equipment:
+                    query_parts.append("AND LOWER(equipment) LIKE LOWER(?)")
+                    params.append(f"%{equipment}%")
+                if subgroup:
+                    query_parts.append("AND LOWER(subgroup) LIKE LOWER(?)")
+                    params.append(f"%{subgroup}%")
+                if description_keyword:
+                    query_parts.append("AND LOWER(description) LIKE LOWER(?)")
+                    params.append(f"%{description_keyword}%")
+
+                query_parts.append("LIMIT ?")
+                params.append(limit)
+
+                cursor.execute(" ".join(query_parts), params)
                 results.extend([dict(row) for row in cursor.fetchall()])
                 
-                # 2. Busca em análises da IA marcadas como Gold Standard (Memória Evolutiva)
-                # Nota: Aqui precisamos dar parse no JSON de resultado salvo
-                cursor.execute("""
+                # 2. Busca em Gold Standards (Memória Evolutiva) filtrada
+                gold_query = """
                     SELECT 'AI_GOLD' as source, a.folder_name as description, f.corrected_conclusion as root_cause, a.timestamp as date
                     FROM expert_feedback f
                     JOIN analyses a ON f.analysis_id = a.id
                     WHERE f.is_gold_standard = TRUE
-                    ORDER BY a.timestamp DESC
-                    LIMIT 5
-                """)
+                """
+                gold_params = []
+                if equipment:
+                    gold_query += " AND LOWER(a.folder_name) LIKE LOWER(?)"
+                    gold_params.append(f"%{equipment}%")
+                
+                gold_query += " ORDER BY a.timestamp DESC LIMIT 5"
+                
+                cursor.execute(gold_query, gold_params)
                 results.extend([dict(row) for row in cursor.fetchall()])
                 
                 return results
+        except sqlite3.Error as e:
+            logger.error(f"Erro na busca dinâmica: {e}")
+            return []
         except sqlite3.Error as e:
             logger.error(f"Erro na busca unificada: {e}")
             return []

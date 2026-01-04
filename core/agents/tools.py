@@ -56,8 +56,14 @@ class FailureAnalysisTools:
                 
         return self.video_analyzer.analyze_videos(paths, media_contexts=contexts)
 
-    def search_similar_failures(self, area: str, equipment: str, subgroup: str) -> List[dict]:
+    def search_similar_failures(self, area: str = "", equipment: str = "", subgroup: str = "", description_keyword: str = "") -> List[dict]:
         """
         Busca falhas históricas similares e análises anteriores da IA no SQLite.
+        
+        Args:
+            area: Nome da planta/área (ex: LF, CM).
+            equipment: Nome do equipamento (ex: CM_2).
+            subgroup: Subgrupo ou componente específico.
+            description_keyword: Termo técnico para busca na descrição (ex: 'travamento', 'vibração').
         """
-        return self.db.search_unified_history(area, equipment, subgroup)
+        return self.db.search_unified_history(area, equipment, subgroup, description_keyword)

@@ -45,11 +45,12 @@ class LeadAnalysisAgent:
                 expert_tasks,
                 "REGRAS DE OURO TÉCNICAS:",
                 expert_notes,
-                "FLUXO OBRIGATÓRIO:",
-                "1. Verifique se há fotos ou vídeos. Se sim, use OBRIGATORIAMENTE as ferramentas analyze_images_tool ou analyze_videos_tool.",
-                "2. Use search_similar_failures para embasamento histórico no banco de dados.",
-                "3. Sintetize as evidências visuais + histórico + descrição do problema.",
-                "4. Gere a Conclusão Final rica em detalhes técnicos (mencione evidências das imagens, ex: cores de oxidação, fraturas, contaminação).",
+                "ESTRATÉGIA DE BUSCA HISTÓRICA (HUMAN-LIKE):",
+                "- OBRIGATÓRIO: Sempre comece buscando o histórico de falhas similares antes de qualquer conclusão.",
+                "- Passo 1: Use 'search_similar_failures' com Area, Equipment e Subgroup.",
+                "- Passo 2: Se retornar vazio ou pouco útil, FAÇA UMA NOVA BUSCA apenas com 'equipment'.",
+                "- Passo 3: Se ainda assim nada surgir, use 'description_keyword' com um termo técnico do problema.",
+                "Sua análise final DEVE comparar a falha atual com os precedentes encontrados.",
                 "Ao final, inclua OBRIGATORIAMENTE o bloco JSON no formato abaixo:",
                 format_spec(language)
             ],
@@ -87,7 +88,10 @@ class LeadAnalysisAgent:
         {gold_context}
         
         TAREFA:
-        Realize a análise RCA completa. Utilize as ferramentas para olhar as mídias e o histórico.
+        1. BUSQUE O HISTÓRICO AGORA: Use search_similar_failures para entender os precedentes desta máquina ({excel_data.get('equipment')}).
+        2. ANALISE AS MÍDIAS: Use as ferramentas de visão para as fotos/vídeos fornecidos.
+        3. REALIZE O RCA: Com base no histórico e nas imagens, gere o diagnóstico.
+        
         Retorne um objeto JSON contendo: 'ishikawa', 'five_whys', 'root_cause' e 'action_plan'.
         """
         
