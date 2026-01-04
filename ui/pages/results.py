@@ -505,10 +505,28 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
     
     # Relevância (usando o estilo verde do histórico bruto para causa raiz)
     if relevance_esc:
-        relevance_html = _format_content_html(str(relevance))
+        # Normaliza e remove frases redundantes
+        rel_text = str(relevance)
+        # remove frase redundante que por vezes aparece no bloco de dados
+        rel_text = re.sub(r'(?i)a\s+falha\s+historica\s+ocorreu\s+na\s+data[:\s]*', '', rel_text)
+
+        # tenta separar em intro / causa usando o mesmo helper
+        rel_sections = _extract_data_sections(rel_text)
+        rel_intro = rel_sections.get('intro', '').strip()
+        rel_cause = rel_sections.get('root_cause', '').strip()
+
         html_parts.append('<div style="background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22C55E; border-radius: 6px; padding: 10px; margin-top: 10px;">')
         html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">🎯 Relevância Técnica:</div>')
-        html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{relevance_html}</div>')
+
+        if rel_intro:
+            rel_intro_html = _format_content_html(rel_intro)
+            html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5; margin-bottom:8px;">{rel_intro_html}</div>')
+
+        if rel_cause:
+            rc_html = _format_content_html(rel_cause)
+            html_parts.append('<div style="color: #E2E8F0; margin-bottom: 6px;"><strong>🎯 Causa Raiz (identificada):</strong></div>')
+            html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{rc_html}</div>')
+
         html_parts.append('</div>')
     
     # Dados relevantes (usando o estilo laranja do histórico bruto para ações)
