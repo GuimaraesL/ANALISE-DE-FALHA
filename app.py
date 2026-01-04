@@ -56,18 +56,27 @@ def setup_google_credentials() -> None:
     credentials_path = config.get("google_credentials_path")
     
     if credentials_path:
-        p = Path(credentials_path)
-        # Tenta o caminho original, depois na pasta config/
-        if not p.exists():
-            p = Path("config") / credentials_path
+        root_path = Path(__file__).parent
+        p_root = root_path / credentials_path
+        p_config = root_path / "config" / credentials_path
+        p_literal = Path(credentials_path)
             
-        if p.exists():
-            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(p)
-            logger.info(f"Credenciais do Google Cloud carregadas: {p}")
+        if p_config.exists():
+            final_p = p_config
+        elif p_root.exists():
+            final_p = p_root
+        elif p_literal.exists():
+            final_p = p_literal
+        else:
+            final_p = None
+
+        if final_p:
+            os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = str(final_p.absolute())
+            logger.info(f"Credenciais do Google Cloud carregadas: {final_p}")
         else:
             st.warning(
-                f"⚠️ Arquivo de credenciais '{credentials_path}' não encontrado na raiz ou em config/. "
-                "A análise de vídeo pode falhar."
+                f"⚠️ Arquivo de credenciais '{credentials_path}' não encontrado.\n"
+                f"Verifique as pastas /config ou a raiz do projeto."
             )
             logger.warning(f"Credenciais não encontradas: {credentials_path}")
 

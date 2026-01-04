@@ -36,14 +36,32 @@ def load_config(config_path: str = "config.json") -> dict:
         >>> config = load_config()
         >>> api_key = config.get("gemini_api_key")
     """
-    # Tenta primeiro na pasta config/, depois na raiz
-    config_file = Path(config_path)
-    if not config_file.exists():
-        alt_path = Path("config") / config_path
-        if alt_path.exists():
-            config_file = alt_path
-        else:
-            raise FileNotFoundError(f"Config file '{config_path}' not found (checked root and config/ folder).")
+    # Define a raiz do projeto relativa a este arquivo (core/config_loader.py -> raiz)
+    root_path = Path(__file__).parent.parent
+    
+    # Ordem de busca: 
+    # 1. Pasta config/ (Nova estrutura)
+    # 2. Raiz do projeto (Estrutura antiga/fallback)
+    # 3. Caminho literal (Caso o usuário passe um path absoluto)
+    
+    config_file_in_config = root_path / "config" / config_path
+    config_file_in_root = root_path / config_path
+    config_file_literal = Path(config_path)
+
+    if config_file_in_config.exists():
+        config_file = config_file_in_config
+    elif config_file_in_root.exists():
+        config_file = config_file_in_root
+    elif config_file_literal.exists():
+        config_file = config_file_literal
+    else:
+        raise FileNotFoundError(
+            f"Arquivo de configuração '{config_path}' não encontrado.\n"
+            f"Locais verificados:\n"
+            f"- {config_file_in_config}\n"
+            f"- {config_file_in_root}\n"
+            "Verifique se o arquivo existe e se você está no diretório correto do projeto."
+        )
     
     with open(config_file, "r", encoding="utf-8") as f:
         config = json.load(f)
