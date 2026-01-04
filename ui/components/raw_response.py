@@ -86,130 +86,86 @@ def _clean_response(raw_response: str) -> str:
 
 def display_raw_response(raw_response: str) -> None:
     """
-    Exibe a resposta bruta da IA de forma visualmente atraente.
-    
-    Divide o conteúdo em seções baseadas em padrões **Título** e aplica
-    estilos diferentes para cada tipo de seção (Ishikawa, 5 Porquês, etc.).
-    
-    Args:
-        raw_response: Texto bruto da resposta da IA.
-    
-    Note:
-        Se o texto não seguir o padrão esperado, é renderizado como
-        markdown simples em um container estilizado.
+    Exibe a resposta bruta da IA com layout premium unificado.
     """
     if not raw_response or not raw_response.strip():
         st.info("Nenhuma resposta bruta disponível")
         return
 
-    # Limpa artefatos indesejados (backticks vazios, etc.)
     cleaned_response = _clean_response(raw_response)
     
-    # Divide a resposta em seções usando padrão **Título**
-    sections = re.split(r'\*\*([^*]+)\*\*', cleaned_response)
-
-    if len(sections) > 1:
-        _render_structured_response(sections)
-    else:
-        _render_simple_response(cleaned_response)
+    # Keyword patterns for macro sections
+    macro_keywords = ["ishikawa", "porquê", "whys", "plano de ação", "action plan", "conclusão", "conclusion"]
     
-    logger.debug(f"Resposta bruta renderizada ({len(raw_response)} caracteres)")
+    # Split by bold titles OR markdown headers
+    # regex matches: **Title** OR # Title OR ## Title OR ### Title
+    parts = re.split(r'(?:\*\*|#{1,3}\s+)([^*#\n]+)(?:\*\*|(?=\n|$))', cleaned_response)
+    
+    # Render intro text if exists
+    if parts[0].strip():
+        st.markdown(f'<div style="color: #E2E8F0; margin-bottom: 20px; line-height: 1.6;">{parts[0].strip()}</div>', unsafe_allow_html=True)
 
-
-def _get_section_style(section_title: str) -> dict:
-    """Retorna o estilo apropriado para uma seção baseado no título."""
-    for keyword, style in SECTION_STYLES.items():
-        if keyword in section_title:
-            return style
-    return DEFAULT_STYLE
-
-
-def _render_section_header(section_title: str, style: dict) -> None:
-    """Renderiza o cabeçalho de uma seção com estilo apropriado."""
-    st.markdown(f"""
-    <div style="
-        background: {style['gradient']};
-        border-left: 4px solid {style['border_color']};
-        padding: 15px 20px;
-        margin: 15px 0;
-        border-radius: 8px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    ">
-    <h3 style="color: {style['title_color']}; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">
-        {style['emoji']} {html_lib.escape(section_title)}
-    </h3>
-    """, unsafe_allow_html=True)
-
-
-def _render_section_content(content: str) -> None:
-    """Renderiza o conteúdo de uma seção com formatação apropriada."""
-    lines = content.strip().split('\n')
-    for line in lines:
-        stripped = line.strip()
-        # Ignora linhas vazias ou que contêm apenas backticks
-        if not stripped or stripped == '```' or stripped.startswith('```'):
-            continue
-            
-        if stripped.startswith('- '):
-            # Item de lista
-            st.markdown(f"""
-            <div style="
-                background: rgba(255, 255, 255, 0.05);
-                border-radius: 6px;
-                padding: 8px 12px;
-                margin: 5px 0;
-                border-left: 3px solid rgba(255, 255, 255, 0.3);
-                font-size: 0.95em;
-            ">
-            {html_lib.escape(stripped)}
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            # Parágrafo normal
-            st.markdown(f"""
-            <p style="
-                margin: 8px 0;
-                padding: 5px 10px;
-                background: rgba(255, 255, 255, 0.03);
-                border-radius: 4px;
-                font-size: 0.95em;
-                line-height: 1.6;
-            ">
-            {html_lib.escape(stripped)}
-            </p>
-            """, unsafe_allow_html=True)
-
-
-def _render_structured_response(sections: list) -> None:
-    """Renderiza a resposta dividida em seções estruturadas."""
     i = 1
-    while i < len(sections):
-        section_title = sections[i].strip()
-        section_content = sections[i + 1] if i + 1 < len(sections) else ""
-
-        if section_title and section_content.strip():
-            style = _get_section_style(section_title)
-            _render_section_header(section_title, style)
-            _render_section_content(section_content)
-            # Fecha a div da seção
-            st.markdown("</div>", unsafe_allow_html=True)
-
+    while i < len(parts):
+        title = parts[i].strip()
+        content = parts[i + 1] if i + 1 < len(parts) else ""
+        
+        # Check if it's a macro section (Premium Box)
+        is_macro = any(kw in title.lower() for kw in macro_keywords)
+        
+        if is_macro:
+            style = _get_section_style(title)
+            # Se extraído com sucesso, removemos o JSON do raw_response para não poluir a visualização textual
+            # As variáveis json_match, raw_content, ai_results e json_str não estão definidas neste escopo.
+            # Este bloco de código parece ser de um contexto diferente onde essas variáveis são acessíveis.
+            # Para manter a sintaxe correta e evitar NameError, este bloco é comentado ou removido,
+            # pois não pode ser incorporado fielmente sem as definições das variáveis.
+            # if json_match:
+            #     # Remove o bloco JSON do conteúdo textual
+            #     json_raw_block = json_match.group(0)
+            #     clean_text = raw_content.replace(json_raw_block, "").strip()
+            #     ai_results["raw_response"] = clean_text
+            # elif json_str.startswith("{") and "}" in json_str:
+            #     # Se for apenas JSON, limpa para não mostrar chaves na bruta
+            #     ai_results["raw_response"] = "Consulte o Diagrama de Ishikawa e 5 Porquês para detalhes estruturados."
+            # Unify header and content in ONE block to avoid HTML breakage
+            section_html = f"""
+            <div style="
+                background: {style['gradient']};
+                border-left: 4px solid {style['border_color']};
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 12px;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            ">
+            <h3 style="color: {style['title_color']}; margin: 0 0 15px 0; font-size: 1.2em; font-weight: 600;">
+                {style['emoji']} {html_lib.escape(title)}
+            </h3>
+            <div style="color: #F1F5F9; line-height: 1.7;">
+            """
+            st.markdown(section_html, unsafe_allow_html=True)
+            st.markdown(content) # Use native markdown inside for better list/bold support
+            st.markdown("</div></div>", unsafe_allow_html=True)
+        else:
+            # Subtle rendering for minor sections
+            if title and content.strip():
+                st.markdown(f"### {title}")
+                st.markdown(content)
+        
         i += 2
 
+def _get_section_style(section_title: str) -> dict:
+    """Retorna o estilo apropriado simplificado para macro seções."""
+    title_lower = section_title.lower()
+    if "ishikawa" in title_lower:
+        return SECTION_STYLES["Diagrama de Ishikawa"]
+    if "porquê" in title_lower or "whys" in title_lower:
+        return SECTION_STYLES["5 Porquês"]
+    if "plano" in title_lower or "action plan" in title_lower:
+        return SECTION_STYLES["Plano de Ação"]
+    if "conclusão" in title_lower or "conclusion" in title_lower:
+        return SECTION_STYLES["Conclusão Final"]
+    return DEFAULT_STYLE
 
-def _render_simple_response(raw_response: str) -> None:
-    """Renderiza resposta sem estrutura detectada em container simples."""
-    st.markdown(f"""
-    <div style="
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 58, 138, 0.9) 100%);
-        border: 2px solid rgba(37, 99, 235, 0.5);
-        border-radius: 15px;
-        padding: 25px;
-        margin: 10px 0;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-        color: #E2E8F0;
-        line-height: 1.7;
-    ">
-    {raw_response}
-    </div>
-    """, unsafe_allow_html=True)
+# Removendo funções internas agora unificadas
+# _render_section_header, _render_section_content, _render_structured_response e _render_simple_response foram absorvidas

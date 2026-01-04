@@ -12,6 +12,7 @@ de falhas passadas extraídos do sistema de análise.
 import json
 from pathlib import Path
 import logging
+from typing import Any
 from unidecode import unidecode
 
 
@@ -41,17 +42,32 @@ class HistoryManager:
         >>> print(f"Encontradas {len(falhas)} falhas relacionadas")
     """
     
-    def __init__(self, data_path: str = "extracted_data.json"):
+    def __init__(self, data_path_or_data: Any = "extracted_data.json"):
         """
         Inicializa o gerenciador de histórico.
         
         Args:
-            data_path: Caminho para o arquivo JSON com histórico de falhas.
-                Por padrão, busca 'extracted_data.json' na raiz do projeto.
+            data_path_or_data: Caminho para o arquivo JSON (str/Path) OU lista de dados direta.
         """
-        self.data_path = Path(data_path)
-        self.history_data = self._load_data()
+        if isinstance(data_path_or_data, (str, Path)):
+            self.data_path = Path(data_path_or_data)
+            self.history_data = self._load_data()
+        elif isinstance(data_path_or_data, list):
+            self.data_path = None
+            self.history_data = data_path_or_data
+        else:
+            self.data_path = None
+            self.history_data = []
+            
         logging.info(f"Gerenciador de Histórico inicializado com {len(self.history_data)} registros.")
+
+    def get_similar_failures(self, area: str, equipment: str, subgroup: str) -> list:
+        """Alias para find_related_failures com argumentos explícitos."""
+        return self.find_related_failures({
+            "area": area,
+            "equipment": equipment,
+            "subgroup": subgroup
+        })
 
     def _load_data(self) -> list:
         if not self.data_path.exists():

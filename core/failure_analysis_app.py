@@ -30,6 +30,8 @@ from core.config_loader import load_config
 from ui.texts import TEXTS
 from core.history_manager import HistoryManager
 from core.prompts import history_section
+from core.database import DatabaseManager
+# LeadAnalysisAgent é importado dinamicamente apenas se V2 for selecionada
 import re
 import time
 from datetime import datetime
@@ -77,7 +79,7 @@ class FailureAnalysisApp:
         >>> app.run()  # Processa todas as subpastas
     """
     
-    def __init__(self, root_folder: str, gemini_api_key: str, enable_images: bool = True, enable_videos: bool = True, language: str = "pt"):
+    def __init__(self, root_folder: str, gemini_api_key: str, enable_images: bool = True, enable_videos: bool = True, language: str = "pt", engine_version: str = "V1"):
         """
         Inicializa a aplicação de análise de falhas com suas dependências.
         
@@ -87,6 +89,7 @@ class FailureAnalysisApp:
             enable_images: Se True, habilita análise de imagens.
             enable_videos: Se True, habilita análise de vídeos.
             language: Idioma da interface ('pt' para português, 'en' para inglês).
+            engine_version: Versão do motor de IA ('V1' para linear, 'V2' para agêntico).
         """
         self.root_folder = Path(root_folder)
         self.enable_images = enable_images
@@ -98,6 +101,12 @@ class FailureAnalysisApp:
         self.image_analyzer = ImageAnalyzer(gemini_api_key, language)
         self.video_analyzer = VideoAnalyzer(gemini_api_key, language)
         self.ai_processor = AIProcessor(gemini_api_key, language)
+        
+        # Novas dependências V2
+        self.engine_version = engine_version
+        self.db = DatabaseManager()
+        self.agent_orchestrator = None # Inicializado sob demanda
+        self.api_key = gemini_api_key
         self.report_generator = ReportGenerator(language)
         self.results = []
 
@@ -153,9 +162,7 @@ class FailureAnalysisApp:
         processed_count += 1
         progress_bar.progress(processed_count / total_items)
         if excel_result["status"] == "error":
-            return {"folder": folder_name, "status": "error", "details": excel_result["error"]}, 
-        processed_count
-
+            return {"folder": folder_name, "status": "error", "details": excel_result["error"]}, processed_count
 
         pdf_files = self._find_files(folder_path, ["*.pdf"])
         pdf_images = []
@@ -215,20 +222,51 @@ class FailureAnalysisApp:
 
             
         
-        # Etapa 5: Análise Final com IA
+        # Etapa 5: Análise Final com IA (Switch de Engine)
         status_text.info(texts["generating_rca"].format(folder_name=folder_name))
-        final_prompt = self.ai_processor.build_prompt(
-            excel_data=excel_result["data"],
-            media_analyses=raw_media_analyses,
-            refined_history=refined_history_text
-        )
-        ai_results = self.ai_processor.process_with_gemini(final_prompt)
+        
+        if self.engine_version == "V2":
+            # Engine Agêntica (Agno) - Import lazy para evitar erro se dependências não estiverem instaladas
+            if not self.agent_orchestrator:
+                try:
+                    from core.agents.analyst_agent import LeadAnalysisAgent
+                    self.agent_orchestrator = LeadAnalysisAgent(self.api_key, self.history_manager.history_data, self.language)
+                except ImportError as e:
+                    raise RuntimeError(
+                        f"❌ Engine V2 requer dependências adicionais. "
+                        f"Instale com: pip install agno google-genai\n"
+                        f"Erro: {e}"
+                    )
+            
+            # Mapeia caminhos de mídia para o agente
+            media_paths = {
+                "images": [str(p) for p in (self._find_files(folder_path, IMAGE_EXTENSIONS) + pdf_images)],
+                "videos": [str(p) for p in self._find_files(folder_path, VIDEO_EXTENSIONS)]
+            }
+            
+            # Usa uma string consolidada de contexto se houver
+            consolidated_context = "\n".join([f"{k}: {v}" for k, v in media_contexts.items()])
+            
+            agent_result = self.agent_orchestrator.run_analysis(
+                excel_data=excel_result["data"],
+                media_paths=media_paths,
+                context=consolidated_context
+            )
+            ai_results = agent_result["ai_results"]
+        else:
+            # Engine Linear (V1)
+            final_prompt = self.ai_processor.build_prompt(
+                excel_data=excel_result["data"],
+                media_analyses=raw_media_analyses,
+                refined_history=refined_history_text
+            )
+            ai_results = self.ai_processor.process_with_gemini(final_prompt)
+            self._log_prompt(folder_name, final_prompt, refined_history_text)
 
                # FIX: Contabiliza a etapa de análise da IA como uma unidade de trabalho
         processed_count += 1
         progress_bar.progress(processed_count / total_items)
         
-        self._log_prompt(folder_name, final_prompt, refined_history_text)
      
 
 
@@ -258,6 +296,14 @@ class FailureAnalysisApp:
 
             }
 
+        # --- Etapa 7: Persistir no Banco de Dados ---
+        db_id = self.db.save_analysis(
+            folder_name=folder_name,
+            result=result_data,
+            token_details=result_data["token_details"],
+            engine=self.engine_version
+        )
+        result_data["db_id"] = db_id
         
         return result_data, processed_count
         

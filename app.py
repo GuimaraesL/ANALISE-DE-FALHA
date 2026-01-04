@@ -91,7 +91,8 @@ def run_analysis(config: dict, media_contexts: dict = None) -> None:
         gemini_api_key=config["api_key"],
         enable_images=config["enable_images"],
         enable_videos=config["enable_videos"],
-        language=config["lang_code"]
+        language=config["lang_code"],
+        engine_version=config["engine_version"]
     )
     
     app.run(media_contexts=media_contexts)

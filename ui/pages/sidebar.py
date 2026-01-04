@@ -66,6 +66,15 @@ def render_sidebar() -> Dict[str, Any]:
         enable_videos = st.checkbox(texts["video_disabled_ui"], value=False)
         enable_images = st.checkbox(texts["image_disabled_ui"], value=False)
         
+        st.divider()
+        # Seletor de Engine (V1/V2)
+        engine_display = st.radio(
+            texts["engine_selector"],
+            [texts["engine_v1"], texts["engine_v2"]],
+            index=0
+        )
+        engine_version = "V1" if engine_display == texts["engine_v1"] else "V2"
+        
         # Botão de execução
         execute = st.button(texts["run_button"])
     
@@ -78,6 +87,7 @@ def render_sidebar() -> Dict[str, Any]:
         "root_folder": root_folder,
         "enable_videos": enable_videos,
         "enable_images": enable_images,
+        "engine_version": engine_version,
         "execute": execute,
     }
 

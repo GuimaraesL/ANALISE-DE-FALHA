@@ -12,6 +12,7 @@ from datetime import datetime
 from typing import Dict, Any, List
 import logging
 import re
+from core.database import DatabaseManager
 
 from ui.texts import TEXTS
 from ui.components import plot_ishikawa, display_five_whys, display_raw_response
@@ -211,6 +212,7 @@ def _render_single_result(result: Dict[str, Any], texts: Dict[str, str], lang_co
     _render_five_whys(details, texts, lang_code)
     _render_history(details, texts, lang_code)
     _render_conclusion(details, texts)
+    _render_calibration_section(result, texts)
     _render_tokens(result, texts)
     _render_download_button(result, texts, lang_code)
 
@@ -283,17 +285,19 @@ def _render_raw_response(details: Dict, texts: Dict) -> None:
 def _render_ishikawa(details: Dict, texts: Dict, lang_code: str) -> None:
     """Renderiza o diagrama de Ishikawa."""
     ai_results = details.get("ai_results", {})
-    if "ishikawa" in ai_results:
+    ishikawa_data = ai_results.get("ishikawa")
+    if ishikawa_data:
         with st.expander(texts["ishikawa_expander"]):
-            plot_ishikawa(ai_results["ishikawa"], texts, lang_code)
+            plot_ishikawa(ishikawa_data, texts, lang_code)
 
 
 def _render_five_whys(details: Dict, texts: Dict, lang_code: str) -> None:
     """Renderiza os 5 Porquês."""
     ai_results = details.get("ai_results", {})
-    if "five_whys" in ai_results:
+    five_whys_data = ai_results.get("five_whys")
+    if five_whys_data:
         with st.expander(texts["five_whys_expander"]):
-            display_five_whys(ai_results["five_whys"], "cards", texts, lang_code)
+            display_five_whys(five_whys_data, "cards", texts, lang_code)
 
 
 def _render_history(details: Dict, texts: Dict, lang_code: str) -> None:
@@ -381,91 +385,83 @@ def _parse_correlated_failures(refined_history: str) -> List[Dict[str, str]]:
     """
     failures = []
     
-    # Divide o texto em seções de falhas
     lines = refined_history.split('\n')
-    current_failure = {}
+    current_failure = None
     current_key = None
+    failures = []
     
-    for line in lines:
-        line = line.strip()
-        failures = []
+    # Regex flexível que aceita com ou sem marcadores de lista e asteriscos
+    history_pattern = re.compile(r"^[-\*\s]*(?:\*\*?)?Falha Histórica\s*\d+\s*:?(?:\*\*?)?\s*(.*)", re.IGNORECASE)
+    relevance_pattern = re.compile(r"^[-\*\s]*(?:\*\*?)?Relevância\s*:?(?:\*\*?)?\s*(.*)", re.IGNORECASE)
+    data_pattern = re.compile(r"^[-\*\s]*(?:\*\*?)?Dados Relevantes\s*:?(?:\*\*?)?\s*(.*)", re.IGNORECASE)
+    date_pattern = re.compile(r"(\d{2}/\d{2}/\d{4})")
 
-        # Divide o texto em linhas para parsing robusto
-        lines = refined_history.split('\n')
-        current_failure = None
-        current_key = None
+    def _start_new_failure(desc_text: str = ""):
+        return {'description': desc_text.strip(), 'relevance': '', 'data': '', 'date': ''}
 
-        date_pattern = re.compile(r"(\d{2}/\d{2}/\d{4})")
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
 
-        def _start_new_failure(desc_text: str = ""):
-            return {'description': desc_text.strip(), 'relevance': '', 'data': '', 'date': ''}
+        # Início de nova falha
+        match_hist = history_pattern.search(line)
+        if match_hist:
+            # salva anterior
+            if current_failure and current_failure.get('description'):
+                failures.append(current_failure)
 
-        for raw in lines:
-            line = raw.strip()
-            if not line:
-                continue
+            desc = match_hist.group(1).strip()
+            current_failure = _start_new_failure(desc)
+            current_key = 'description'
+            continue
 
-            # Início de nova falha (com ou sem marcador "- ")
-            if re.search(r"\*\*Falha Histórica\s*\d+\s*:\*\*", line) or line.lower().startswith('falha histórica'):
-                # salva anterior
-                if current_failure and current_failure.get('description'):
-                    failures.append(current_failure)
+        # Relevância
+        match_rel = relevance_pattern.search(line)
+        if match_rel:
+            current_key = 'relevance'
+            if match_rel.group(1):
+                if current_failure:
+                    current_failure['relevance'] = match_rel.group(1).strip()
+            continue
 
-                # pega descrição após o título, se existir
-                desc_match = re.search(r"\*\*Falha Histórica\s*\d+\s*:?\*\*\s*(.*)", line)
-                desc = desc_match.group(1).strip() if desc_match and desc_match.group(1) else ''
-                current_failure = _start_new_failure(desc)
-                current_key = 'description'
-                continue
+        # Dados Relevantes
+        match_data = data_pattern.search(line)
+        if match_data:
+            current_key = 'data'
+            if match_data.group(1):
+                if current_failure:
+                    current_failure['data'] = match_data.group(1).strip()
+            continue
 
-            # Relevância
-            if re.search(r"\*\*Relevância\s*:?\*\*", line) or line.lower().startswith('relevância'):
-                current_key = 'relevance'
-                # extrai conteúdo na mesma linha depois dos marcadores
-                rel_match = re.search(r"\*\*Relevância\s*:?\*\*\s*(.*)", line)
-                if rel_match and rel_match.group(1):
-                    if current_failure:
-                        current_failure['relevance'] = rel_match.group(1).strip()
-                continue
+        # Linhas de continuação: adiciona ao campo atual
+        if current_key and current_failure is not None:
+            # remove leading markers
+            content = re.sub(r'^[-\*\s]+', '', line).strip()
 
-            # Dados Relevantes
-            if re.search(r"\*\*Dados Relevantes\s*:?\*\*", line) or line.lower().startswith('dados relevantes'):
-                current_key = 'data'
-                data_match = re.search(r"\*\*Dados Relevantes\s*:?\*\*\s*(.*)", line)
-                if data_match and data_match.group(1):
-                    if current_failure:
-                        current_failure['data'] = data_match.group(1).strip()
-                continue
+            # se conteúdo contém data, extraí-la e remove do texto de dados
+            date_found = date_pattern.search(content)
+            if date_found:
+                current_failure['date'] = date_found.group(1)
+                # remove apenas a data da string para manter legibilidade
+                content = content.replace(date_found.group(1), '').strip(' -:')
 
-            # Linhas de continuação: adiciona ao campo atual
-            if current_key and current_failure is not None:
-                # remove leading markers
-                content = re.sub(r'^[-\*\s]+', '', line).strip()
+            if current_failure.get(current_key):
+                current_failure[current_key] += '\n' + content
+            else:
+                current_failure[current_key] = content
+            continue
 
-                # se conteúdo contém data, extraí-la e remove do texto de dados
-                date_found = date_pattern.search(content)
-                if date_found:
-                    current_failure['date'] = date_found.group(1)
-                    # remove apenas a data da string para manter legibilidade
-                    content = content.replace(date_found.group(1), '').strip(' -:')
+        if current_failure is not None:
+            date_found = date_pattern.search(line)
+            if date_found and not current_failure.get('date'):
+                current_failure['date'] = date_found.group(1)
 
-                if current_failure.get(current_key):
-                    current_failure[current_key] += '\n' + content
-                else:
-                    current_failure[current_key] = content
-                continue
+    # adiciona última
+    if current_failure and current_failure.get('description'):
+        failures.append(current_failure)
 
-            # Caso não haja key atual, tenta capturar linhas soltas que contenham data
-            if current_failure is not None:
-                date_found = date_pattern.search(line)
-                if date_found and not current_failure.get('date'):
-                    current_failure['date'] = date_found.group(1)
-
-        # adiciona ultima
-        if current_failure and current_failure.get('description'):
-            failures.append(current_failure)
-
-        return failures
+    return failures
 def _render_correlated_failure_card(failure: Dict[str, str], index: int, texts: Dict) -> None:
     """
     Renderiza um card para uma falha correlacionada, seguindo o mesmo estilo do histórico bruto.
@@ -620,32 +616,43 @@ def _render_conclusion(details: Dict, texts: Dict) -> None:
     if not raw_response:
         return
     
-    # Extrair a seção "Conclusão Final" ou "Final Conclusion" do raw_response
-    section_label = "Conclusão Final" if "conclusão final" in raw_response.lower() else "Final Conclusion"
-    conclusion_section = _extract_section_from_raw_response(raw_response, section_label)
+    # Extraímos a conclusão de forma robusta suportando V1 e V2
+    pat = r'(?i)(?:\*\*|#{1,3}\s*)(conclusão final|conclusion)(?::?\s*\*\*|:?\s*(?:\n|$))(.*?)(?=(?:\n\s*(?:\*\*|#{1,3}))|$)'
+    match = re.search(pat, raw_response, re.DOTALL)
     
-    if not conclusion_section:
-        # Tenta pegar pela chave do dicionário caso a acima falhe
-        conclusion_section = details.get("ai_results", {}).get("conclusion", "")
+    conclusion_text = ""
+    if match:
+        conclusion_text = match.group(2).strip()
+    else:
+        # Fallback para as chaves diretas do dicionário
+        conclusion_text = details.get("ai_results", {}).get("root_cause") or details.get("ai_results", {}).get("conclusion", "")
         
-    if not conclusion_section:
+    if not conclusion_text:
         return
     
-    # Estilo premium para conclusão do raw response (roxo, como definido em raw_response.py)
-    style_conclusion_raw = "background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(196, 181, 253, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.3); border-left: 4px solid #A855F7; border-radius: 10px; padding: 20px 25px;"
+    # Estilo premium com margem extra para evitar "vazamento" para calibração
+    style_box = f"background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(196, 181, 253, 0.1) 100%); border-left: 4px solid #A855F7; border-radius: 10px; padding: 25px; margin-bottom: 20px;"
+    
+    # Prepara o conteúdo preservando quebras de linha e negritos para HTML
+    formatted_text = html_lib.escape(str(conclusion_text)).replace("\n", "<br>")
+    # Restaura negritos básicos (**texto**) dentro do HTML escapado
+    formatted_text = re.sub(r'\*\*(.*?)\*\*', r'<b>\1</b>', formatted_text)
     
     with st.expander(texts["conclusion_expander"]):
-        # Header estilizado
-        st.markdown(f'''
-        <div style="{style_conclusion_raw}">
-            <h4 style="color: #C4B5FD; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+        # Unificamos em UM ÚNICO st.markdown para evitar que o Streamlit quebre o layout
+        st.markdown(f"""
+        <div style="{style_box}">
+            <h4 style="color: #C4B5FD; margin: 0 0 15px 0; font-weight: 600;">
                 {texts["conclusion_title"]}
             </h4>
-            <div style="color: #E2E8F0; line-height: 1.7; font-size: 1.05em;">
-                {html_lib.escape(conclusion_section)}
+            <div style="color: #F1F5F9; line-height: 1.7; font-size: 1.05em;">
+                {formatted_text}
             </div>
         </div>
-        ''', unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
+
+    # Espaçador físico entre o expander e a calibração
+    st.write("")
 
 
 def _get_field(data: Dict, *keys, default: str = "N/A") -> str:
@@ -856,3 +863,50 @@ def _render_download_button(result: Dict, texts: Dict, lang_code: str) -> None:
         file_name=filename,
         mime="text/markdown"
     )
+
+def _render_calibration_section(result: Dict[str, Any], texts: Dict[str, str]) -> None:
+    """Implementa a interface de feedback/calibração do especialista."""
+    db_id = result.get("db_id")
+    if not db_id or db_id == -1:
+        return
+
+    st.markdown("---")
+    with st.expander(texts["calibration_header"]):
+        st.markdown(f"*{texts['calibration_instruction']}*")
+        
+        # ID único para os elementos desta pasta
+        folder_id = result["folder"].replace(" ", "_").replace("/", "_")
+        
+        # Tenta extrair a conclusão atual para preenchimento
+        raw_resp = result["details"].get("ai_results", {}).get("raw_response", "")
+        # Usamos a mesma lógica de extração da conclusão
+        section_label = "Conclusão Final" if "conclusão final" in raw_resp.lower() else "Final Conclusion"
+        current_conclusion = ""
+        # Chamada interna para o utilitário de extração (pode precisar de import ou definição)
+        match = re.search(f"{section_label}:?\\s*(.*?)(?=\\n\\s*#|\\n\\s*---|$)", raw_resp, re.DOTALL | re.IGNORECASE)
+        if match:
+            current_conclusion = match.group(1).strip()
+        
+        if not current_conclusion:
+            current_conclusion = result["details"].get("ai_results", {}).get("conclusion", "")
+
+        # Campos do Formulário
+        with st.form(key=f"calibration_form_{folder_id}"):
+            is_gold = st.checkbox(texts["is_gold_label"], value=False)
+            correction = st.text_area(texts["conclusion_title"], value=current_conclusion, height=150)
+            notes = st.text_area(texts["expert_notes_placeholder"], value="")
+            
+            submit = st.form_submit_button(texts["save_calibration_button"])
+            
+            if submit:
+                db = DatabaseManager()
+                success = db.save_expert_feedback(
+                    analysis_id=db_id,
+                    is_gold=is_gold,
+                    correction=correction,
+                    notes=notes
+                )
+                if success:
+                    st.success(texts["calibration_saved"])
+                else:
+                    st.error("Erro ao salvar calibração no banco de dados.")

@@ -24,6 +24,7 @@ Este projeto é uma aplicação web construída com **Streamlit** e **Python** q
 | 🐟 **Diagrama de Ishikawa** | Geração automática de diagrama de causa e efeito |
 | ❓ **5 Porquês** | Análise estruturada com cards interativos |
 | 🎯 **Plano de Ação** | Recomendações práticas baseadas na análise |
+| 🖼️ **Contexto de Mídias** | Permite guiar a IA com observações por foto/vídeo |
 | 🌐 **Bilíngue** | Suporte completo a Português e Inglês |
 | 📥 **Export Markdown** | Download de relatórios no formato .md |
 
@@ -140,6 +141,8 @@ ANALISE-DE-FALHA/
 | **Leitura Excel** | Openpyxl | 3.x |
 | **Normalização** | Unidecode | 1.x |
 | **Gráficos** | Matplotlib | 3.x |
+
+---
 
 ---
 
@@ -276,6 +279,17 @@ O sistema exibe o consumo de tokens de cada análise:
 | **Custo Estimado** | Baseado na tabela de preços do Gemini |
 
 ⚠️ **Limite Recomendado:** Manter prompt final abaixo de 30.000 tokens para otimização de custo.
+
+---
+
+## 🗺️ Roadmap e Evolução
+
+O projeto possui um plano de evolução estruturado para transicionar de uma ferramenta de análise para um **Sistema Especialista de Manutenção**.
+
+**Destaques do [ROADMAP.md](ROADMAP.md):**
+- **Persistência SQLite:** Memória de longo prazo para análises.
+- **Calibração de Especialista:** Aprendizado através de feedback humano (Dynamic Few-Shot).
+- **Busca Semântica (RAG):** Migração para banco de vetores para correlação avançada.
 
 ---
 
