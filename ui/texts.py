@@ -81,12 +81,9 @@ TEXTS = {
         "reading_excel": "Lendo Excel em: {folder_name}",
         "analyzing_videos": "Analisando {count} vídeo(s) em: {folder_name}",
         "analyzing_images": "Analisando {count} imagem(ns) em: {folder_name}",
-
-
-
-
-
-
+        "conclusion_expander": "🎯 Conclusão Final",
+        "conclusion_title": "Conclusão da Análise",
+        "no_conclusion": "Nenhuma conclusão disponível",
     },
     "en": {
         "title": "Failure Analysis",
@@ -152,11 +149,8 @@ TEXTS = {
         "reading_excel": "Reading Excel in: {folder_name}",
         "analyzing_videos": "Analyzing {count} video(s) in: {folder_name}",
         "analyzing_images": "Analyzing {count} image(s) in: {folder_name}",
-
-
-
-
-
-        
+        "conclusion_expander": "🎯 Final Conclusion",
+        "conclusion_title": "Analysis Conclusion",
+        "no_conclusion": "No conclusion available",
     }
 }

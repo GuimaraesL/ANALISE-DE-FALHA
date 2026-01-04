@@ -205,6 +205,38 @@ def _render_history(details: Dict, texts: Dict, lang_code: str) -> None:
             </div>
             """, unsafe_allow_html=True)
             st.markdown(details["refined_history"])
+    
+    # Conclusão Final (visual premium)
+    _render_conclusion(details, texts)
+
+
+def _render_conclusion(details: Dict, texts: Dict) -> None:
+    """
+    Renderiza a conclusão final da análise com visual premium.
+    
+    Exibe a conclusão em um card estilizado com gradiente âmbar,
+    destacando a síntese final da análise RCA.
+    """
+    conclusion = details.get("conclusion", "")
+    
+    if not conclusion:
+        return
+    
+    # Estilo premium para conclusão (âmbar/laranja)
+    style_conclusion = "background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(251, 191, 36, 0.1) 100%); border: 1px solid rgba(245, 158, 11, 0.3); border-left: 4px solid #F59E0B; border-radius: 10px; padding: 20px 25px; margin-top: 15px;"
+    
+    with st.expander(texts["conclusion_expander"]):
+        # Header estilizado
+        st.markdown(f'''
+        <div style="{style_conclusion}">
+            <h4 style="color: #FBBF24; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                🎯 {texts["conclusion_title"]}
+            </h4>
+            <div style="color: #E2E8F0; line-height: 1.7; font-size: 1.05em;">
+                {html_lib.escape(str(conclusion))}
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
 
 
 def _get_field(data: Dict, *keys, default: str = "N/A") -> str:
