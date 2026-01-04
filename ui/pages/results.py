@@ -20,6 +20,44 @@ from ui.utils import generate_markdown_result, clean_empty_values
 logger = logging.getLogger(__name__)
 
 
+def _format_content_html(raw: str) -> str:
+    """Converte texto simples com alguns marcadores Markdown para HTML seguro.
+
+    - Converte **negrito** para <strong>
+    - Preserva quebras de linha como <br>
+    - Remove marcadores de lista iniciais '- '
+    """
+    if not raw:
+        return ""
+
+    # Substitui padrões de negrito por placeholders para não serem escapados
+    bold_placeholder_open = "__BOLD_OPEN__"
+    bold_placeholder_close = "__BOLD_CLOSE__"
+    temp = re.sub(r"\*\*(.*?)\*\*", lambda m: f"{bold_placeholder_open}{m.group(1)}{bold_placeholder_close}", raw, flags=re.DOTALL)
+
+    # Escapa HTML perigoso
+    escaped = html_lib.escape(temp)
+
+    # Reverte placeholders para tags <strong>
+    escaped = escaped.replace(bold_placeholder_open, "<strong>").replace(bold_placeholder_close, "</strong>")
+
+    # Normaliza listas: linhas que começam com '-' ou '•'
+    lines = []
+    for line in escaped.split('\n'):
+        l = line.strip()
+        if l.startswith('- ') or l.startswith('• '):
+            # transforma em bullet visual simples (usa •)
+            content = l[2:].strip()
+            lines.append(f'• {content}')
+        else:
+            lines.append(l)
+
+    # Junta usando <br> para preservar quebras
+    html = '<br>'.join(line for line in lines if line is not None)
+    return html
+
+
+
 # ============================================================================
 # ESTILOS PREMIUM REUTILIZÁVEIS
 # ============================================================================
@@ -220,9 +258,18 @@ def _render_refined_history_visual(refined_history: str) -> None:
     
     # Processa o conteúdo da IA para extrair seções estruturadas
     correlated_failures = _parse_correlated_failures(refined_history)
-    
+
     if correlated_failures:
-        # Renderiza cada falha correlacionada como um card
+        # Ordena por data (mais recentes primeiro). Datas no formato dd/mm/YYYY.
+        def _parse_date_or_min(d: str):
+            try:
+                return datetime.strptime(d, "%d/%m/%Y")
+            except Exception:
+                return datetime.min
+
+        correlated_failures.sort(key=lambda f: _parse_date_or_min(f.get('date', '')) , reverse=True)
+
+        # Renderiza cada falha correlacionada como um card (ordenado)
         for i, failure in enumerate(correlated_failures):
             _render_correlated_failure_card(failure, i + 1)
     else:
@@ -364,14 +411,14 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
     # Descrição da falha (seguindo o padrão do histórico bruto)
     html_parts.append('<div style="background: rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 10px; margin-top: 10px;">')
     html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">📝 Descrição da Falha:</div>')
-    # Quebra de parágrafos: preserva quebras de linha
-    description_html = '<br>'.join(html_lib.escape(line.strip()) for line in str(description).split('\n') if line.strip())
+    # Formata o conteúdo com negrito e quebras de linha para melhor legibilidade
+    description_html = _format_content_html(str(description))
     html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{description_html}</div>')
     html_parts.append('</div>')
     
     # Relevância (usando o estilo verde do histórico bruto para causa raiz)
     if relevance_esc:
-        relevance_html = '<br>'.join(html_lib.escape(line.strip()) for line in str(relevance).split('\n') if line.strip())
+        relevance_html = _format_content_html(str(relevance))
         html_parts.append('<div style="background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22C55E; border-radius: 6px; padding: 10px; margin-top: 10px;">')
         html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">🎯 Relevância Técnica:</div>')
         html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{relevance_html}</div>')
@@ -384,7 +431,7 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
             date_match = re.search(r'(\d{2}/\d{2}/\d{4})', data_esc)
             if date_match:
                 date_esc = date_match.group(1)
-        data_html = '<br>'.join(html_lib.escape(line.strip()) for line in str(data).split('\n') if line.strip())
+        data_html = _format_content_html(str(data))
         html_parts.append('<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; border-radius: 6px; padding: 10px; margin-top: 10px;">')
         html_parts.append('<div style="color: #FBBF24; font-weight: 600; margin-bottom: 5px;">📋 Dados Relevantes:</div>')
         html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{data_html}</div>')
