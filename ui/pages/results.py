@@ -254,66 +254,84 @@ def _parse_correlated_failures(refined_history: str) -> List[Dict[str, str]]:
     
     for line in lines:
         line = line.strip()
-        if not line:
-            continue
+        failures = []
 
-        # Detecta início de nova falha (padrões com ou sem marcador '-')
-        if re.match(r'^(?:-\s*)?\*\*Falha Hist[oó]rica\s+\d+:\*\*', line, flags=re.IGNORECASE):
-            # Salva falha anterior se existir
-            if current_failure and current_failure.get('description'):
-                # limpa marcadores markdown
-                current_failure = {k: re.sub(r'\*\*', '', v).strip() if isinstance(v, str) else v for k, v in current_failure.items()}
-                failures.append(current_failure)
+        # Divide o texto em linhas para parsing robusto
+        lines = refined_history.split('\n')
+        current_failure = None
+        current_key = None
 
-            # Nova falha
-            current_failure = {'description': '', 'relevance': '', 'data': '', 'date': ''}
-            # Extrai a descrição da falha (após os asteriscos)
-            desc_match = re.search(r'\*\*Falha Hist[oó]rica\s+\d+:\*\*\s*(.+)', line, flags=re.IGNORECASE)
-            if desc_match:
-                current_failure['description'] = desc_match.group(1).strip()
-            current_key = 'description'
+        date_pattern = re.compile(r"(\d{2}/\d{2}/\d{4})")
 
-        elif re.match(r'^(?:-\s*)?\*\*Relev[aã]ncia:\*\*', line, flags=re.IGNORECASE):
-            current_key = 'relevance'
-            rel_match = re.search(r'\*\*Relev[aã]ncia:\*\*\s*(.+)', line, flags=re.IGNORECASE)
-            if rel_match:
-                current_failure['relevance'] = rel_match.group(1).strip()
+        def _start_new_failure(desc_text: str = ""):
+            return {'description': desc_text.strip(), 'relevance': '', 'data': '', 'date': ''}
 
-        elif re.match(r'^(?:-\s*)?\*\*Dados Relevantes:\*\*', line, flags=re.IGNORECASE):
-            current_key = 'data'
-            data_match = re.search(r'\*\*Dados Relevantes:\*\*\s*(.+)', line, flags=re.IGNORECASE)
-            if data_match:
-                current_failure['data'] = data_match.group(1).strip()
+        for raw in lines:
+            line = raw.strip()
+            if not line:
+                continue
 
-        else:
-            # Conteúdo complementar: pode pertencer a seção atual
-            if current_key:
-                # linhas iniciando com '-' são itens, removemos o marcador
-                if line.startswith('- '):
-                    content = line[2:].strip()
-                else:
-                    content = line
+            # Início de nova falha (com ou sem marcador "- ")
+            if re.search(r"\*\*Falha Histórica\s*\d+\s*:\*\*", line) or line.lower().startswith('falha histórica'):
+                # salva anterior
+                if current_failure and current_failure.get('description'):
+                    failures.append(current_failure)
+
+                # pega descrição após o título, se existir
+                desc_match = re.search(r"\*\*Falha Histórica\s*\d+\s*:?\*\*\s*(.*)", line)
+                desc = desc_match.group(1).strip() if desc_match and desc_match.group(1) else ''
+                current_failure = _start_new_failure(desc)
+                current_key = 'description'
+                continue
+
+            # Relevância
+            if re.search(r"\*\*Relevância\s*:?\*\*", line) or line.lower().startswith('relevância'):
+                current_key = 'relevance'
+                # extrai conteúdo na mesma linha depois dos marcadores
+                rel_match = re.search(r"\*\*Relevância\s*:?\*\*\s*(.*)", line)
+                if rel_match and rel_match.group(1):
+                    if current_failure:
+                        current_failure['relevance'] = rel_match.group(1).strip()
+                continue
+
+            # Dados Relevantes
+            if re.search(r"\*\*Dados Relevantes\s*:?\*\*", line) or line.lower().startswith('dados relevantes'):
+                current_key = 'data'
+                data_match = re.search(r"\*\*Dados Relevantes\s*:?\*\*\s*(.*)", line)
+                if data_match and data_match.group(1):
+                    if current_failure:
+                        current_failure['data'] = data_match.group(1).strip()
+                continue
+
+            # Linhas de continuação: adiciona ao campo atual
+            if current_key and current_failure is not None:
+                # remove leading markers
+                content = re.sub(r'^[-\*\s]+', '', line).strip()
+
+                # se conteúdo contém data, extraí-la e remove do texto de dados
+                date_found = date_pattern.search(content)
+                if date_found:
+                    current_failure['date'] = date_found.group(1)
+                    # remove apenas a data da string para manter legibilidade
+                    content = content.replace(date_found.group(1), '').strip(' -:')
 
                 if current_failure.get(current_key):
-                    # mantém quebras de linha para melhor formatação
                     current_failure[current_key] += '\n' + content
                 else:
                     current_failure[current_key] = content
+                continue
 
-        # Sempre que tivermos dados, tente extrair uma data no formato dd/mm/yyyy
-        if current_failure and current_failure.get('data'):
-            date_search = re.search(r'(\d{2}/\d{2}/\d{4})', current_failure['data'])
-            if date_search:
-                current_failure['date'] = date_search.group(1)
-    
-    # Adiciona última falha
-    if current_failure and current_failure.get('description'):
-        current_failure = {k: re.sub(r'\*\*', '', v).strip() if isinstance(v, str) else v for k, v in current_failure.items()}
-        failures.append(current_failure)
+            # Caso não haja key atual, tenta capturar linhas soltas que contenham data
+            if current_failure is not None:
+                date_found = date_pattern.search(line)
+                if date_found and not current_failure.get('date'):
+                    current_failure['date'] = date_found.group(1)
 
-    return failures
+        # adiciona ultima
+        if current_failure and current_failure.get('description'):
+            failures.append(current_failure)
 
-
+        return failures
 def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None:
     """
     Renderiza um card para uma falha correlacionada, seguindo o mesmo estilo do histórico bruto.
