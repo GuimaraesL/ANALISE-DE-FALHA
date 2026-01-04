@@ -398,32 +398,9 @@ def _render_refined_history_section(section: Dict[str, str]) -> None:
     </div>
     """, unsafe_allow_html=True)
     
-    # Renderiza o conteúdo usando st.markdown para preservar formatação
+    # Renderiza o conteúdo diretamente como markdown (a IA já formata bem)
     if content.strip():
-        # Adiciona uma pequena indentação para o conteúdo
-        st.markdown(f"""
-        <div style="margin-left: 30px; margin-top: -5px; margin-bottom: 15px;">
-        """, unsafe_allow_html=True)
-        
-        # Divide o conteúdo em linhas e renderiza cada uma
-        lines = content.split('\n')
-        for line in lines:
-            if line.strip():
-                # Preserva formatação básica de markdown
-                if line.startswith('- ') or line.startswith('* '):
-                    # Item de lista
-                    st.markdown(f"• {line[2:].strip()}")
-                elif '**' in line:
-                    # Texto com negrito
-                    st.markdown(line)
-                elif line.strip().isdigit() and len(line.strip()) == 1:
-                    # Possível numeração
-                    st.markdown(line)
-                else:
-                    # Texto normal
-                    st.markdown(line)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown(content)
 
 
 def _extract_section_from_raw_response(raw_response: str, section_title: str) -> str:
