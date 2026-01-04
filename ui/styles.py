@@ -25,10 +25,14 @@ def load_css(css_filename: str = "styles.css") -> None:
         com os estilos padrão do Streamlit.
     """
     css_path = Path(css_filename)
+    # Tenta na raiz, depois na pasta ui/
+    if not css_path.exists():
+        css_path = Path(__file__).parent / css_filename
+
     if css_path.exists():
         with open(css_path, "r", encoding="utf-8") as f:
             st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
             logger.info(f"CSS carregado: {css_path}")
     else:
-        st.warning(f"⚠️ Arquivo {css_filename} não encontrado. Usando estilo padrão.")
+        st.warning(f"⚠️ Arquivo {css_filename} não encontrado na raiz ou em ui/. Usando estilo padrão.")
         logger.warning(f"Arquivo CSS não encontrado: {css_path}")
