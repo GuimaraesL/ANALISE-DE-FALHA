@@ -199,14 +199,117 @@ def _render_history(details: Dict, texts: Dict, lang_code: str) -> None:
     # Histórico refinado pela IA (visual premium)
     if details.get("refined_history"):
         with st.expander(texts["history_expander"]):
-            st.markdown(f"""
-            <div style="{STYLE_REFINED_HISTORY}">
-                <h4 style="color: #4ADE80; margin: 0 0 15px 0;">
-                    🔍 Análise de Correlação pela IA
-                </h4>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown(details["refined_history"])
+            _render_refined_history_visual(details["refined_history"])
+
+
+def _render_refined_history_visual(refined_history: str) -> None:
+    """
+    Renderiza o histórico correlacionado pela IA com visual premium estruturado.
+    
+    Estrutura o conteúdo da IA em seções visuais organizadas, similar ao
+    histórico bruto, mas adaptado para o formato de texto da IA.
+    """
+    # Header principal
+    st.markdown(f"""
+    <div style="{STYLE_REFINED_HISTORY}">
+        <h4 style="color: #4ADE80; margin: 0 0 15px 0;">
+            🔍 Análise de Correlação pela IA
+        </h4>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Processa o conteúdo da IA para extrair seções estruturadas
+    sections = _parse_refined_history_sections(refined_history)
+    
+    if sections:
+        # Renderiza seções estruturadas
+        for section in sections:
+            _render_refined_history_section(section)
+    else:
+        # Fallback: renderiza como texto simples se não conseguir parsear
+        st.markdown(f"""
+        <div style="background: rgba(255, 255, 255, 0.05); border-radius: 8px; padding: 15px; margin: 10px 0;">
+        <div style="color: #E2E8F0; line-height: 1.6;">
+        {html_lib.escape(refined_history)}
+        </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+def _parse_refined_history_sections(refined_history: str) -> List[Dict[str, str]]:
+    """
+    Parseia o histórico correlacionado da IA em seções estruturadas.
+    
+    Tenta identificar padrões comuns no texto da IA para criar seções
+    visuais organizadas.
+    """
+    sections = []
+    
+    # Divide por quebras de linha duplas ou marcadores comuns
+    lines = refined_history.split('\n')
+    current_section = {"title": "Análise Geral", "content": []}
+    
+    for line in lines:
+        line = line.strip()
+        if not line:
+            continue
+            
+        # Detecta possíveis títulos de seção (linhas curtas, maiúsculas, com símbolos)
+        if (len(line) < 100 and 
+            (line.isupper() or 
+             any(line.startswith(marker) for marker in ['•', '-', '*', '1.', '2.', '3.']) or
+             any(keyword in line.lower() for keyword in ['análise', 'correlação', 'padrão', 'recomendação', 'conclusão']))):
+            
+            # Salva seção anterior se tiver conteúdo
+            if current_section["content"]:
+                current_section["content"] = '\n'.join(current_section["content"])
+                sections.append(current_section)
+            
+            # Nova seção
+            current_section = {"title": line, "content": []}
+        else:
+            current_section["content"].append(line)
+    
+    # Adiciona última seção
+    if current_section["content"]:
+        current_section["content"] = '\n'.join(current_section["content"])
+        sections.append(current_section)
+    
+    return sections if sections else []
+
+
+def _render_refined_history_section(section: Dict[str, str]) -> None:
+    """
+    Renderiza uma seção do histórico correlacionado com visual premium.
+    """
+    title = section.get("title", "Seção")
+    content = section.get("content", "")
+    
+    # Determina o ícone baseado no título
+    icon = "📊"  # default
+    if "correlação" in title.lower():
+        icon = "🔗"
+    elif "padrão" in title.lower():
+        icon = "📈"
+    elif "recomendação" in title.lower():
+        icon = "💡"
+    elif "conclusão" in title.lower():
+        icon = "🎯"
+    elif "análise" in title.lower():
+        icon = "🔍"
+    
+    # Container da seção
+    st.markdown(f"""
+    <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); border-left: 4px solid #22C55E; border-radius: 8px; padding: 15px; margin: 10px 0;">
+        <div style="display: flex; align-items: center; margin-bottom: 10px;">
+            <span style="font-size: 1.2em; margin-right: 8px;">{icon}</span>
+            <h5 style="color: #4ADE80; margin: 0; font-weight: 600;">{html_lib.escape(title)}</h5>
+        </div>
+        <div style="color: #E2E8F0; line-height: 1.6;">
+            {html_lib.escape(content)}
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 def _extract_section_from_raw_response(raw_response: str, section_title: str) -> str:
