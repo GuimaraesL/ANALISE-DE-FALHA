@@ -267,7 +267,7 @@ def _render_image_analysis(details: Dict, texts: Dict) -> None:
             if not st.session_state.get("enable_images", False):
                 st.info(texts["image_disabled"])
             else:
-                st.info("Nenhuma análise de imagem encontrada.")
+                st.info(texts.get("no_image_found", "Nenhuma imagem encontrada."))
 
 
 def _render_raw_response(details: Dict, texts: Dict) -> None:
@@ -324,10 +324,10 @@ def _render_history(details: Dict, texts: Dict, lang_code: str) -> None:
     # Histórico refinado pela IA (visual premium)
     if details.get("refined_history"):
         with st.expander(texts["history_expander"]):
-            _render_refined_history_visual(details["refined_history"])
+            _render_refined_history_visual(details["refined_history"], texts)
 
 
-def _render_refined_history_visual(refined_history: str) -> None:
+def _render_refined_history_visual(refined_history: str, texts: Dict[str, str]) -> None:
     """
     Renderiza o histórico correlacionado pela IA com visual premium estruturado.
     
@@ -338,7 +338,7 @@ def _render_refined_history_visual(refined_history: str) -> None:
     st.markdown(f"""
     <div style="{STYLE_REFINED_HISTORY}">
         <h4 style="color: #4ADE80; margin: 0 0 15px 0;">
-            🔍 Análise de Correlação pela IA
+            {texts["ai_correlation_header"]}
         </h4>
     </div>
     """, unsafe_allow_html=True)
@@ -358,7 +358,7 @@ def _render_refined_history_visual(refined_history: str) -> None:
 
         # Renderiza cada falha correlacionada como um card (ordenado)
         for i, failure in enumerate(correlated_failures):
-            _render_correlated_failure_card(failure, i + 1)
+            _render_correlated_failure_card(failure, i + 1, texts)
     else:
         # Fallback: renderiza como texto simples se não conseguir parsear
         st.markdown(f"""
@@ -466,7 +466,7 @@ def _parse_correlated_failures(refined_history: str) -> List[Dict[str, str]]:
             failures.append(current_failure)
 
         return failures
-def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None:
+def _render_correlated_failure_card(failure: Dict[str, str], index: int, texts: Dict) -> None:
     """
     Renderiza um card para uma falha correlacionada, seguindo o mesmo estilo do histórico bruto.
     """
@@ -490,14 +490,14 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
     date_esc = html_lib.escape(date_val) if date_val else ''
     html_parts.append('<div style="display: flex; align-items: center; margin-bottom: 12px;">')
     html_parts.append(f'<div style="width: 32px; height: 32px; background: linear-gradient(135deg, #22C55E 0%, #4ADE80 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; margin-right: 12px;">{index}</div>')
-    html_parts.append(f'<div style="color: #4ADE80; font-weight: 600; font-size: 1.1em;">Falha Correlacionada #{index}</div>')
+    html_parts.append(f'<div style="color: #4ADE80; font-weight: 600; font-size: 1.1em;">{texts["correlated_failure_title"]} #{index}</div>')
     if date_esc:
         html_parts.append(f'<div style="margin-left: auto; color: #9CA3AF; font-size: 0.9em;">📅 {date_esc}</div>')
     html_parts.append('</div>')
     
     # Descrição da falha (seguindo o padrão do histórico bruto)
     html_parts.append('<div style="background: rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 10px; margin-top: 10px;">')
-    html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">📝 Descrição da Falha:</div>')
+    html_parts.append(f'<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">{texts["description_of_failure"]}</div>')
     # Formata o conteúdo com negrito e quebras de linha para melhor legibilidade
     description_html = _format_content_html(str(description))
     html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{description_html}</div>')
@@ -516,7 +516,7 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
         rel_cause = rel_sections.get('root_cause', '').strip()
 
         html_parts.append('<div style="background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22C55E; border-radius: 6px; padding: 10px; margin-top: 10px;">')
-        html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">🎯 Relevância Técnica:</div>')
+        html_parts.append(f'<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">{texts["relevance_technical"]}</div>')
 
         if rel_intro:
             rel_intro_html = _format_content_html(rel_intro)
@@ -524,7 +524,7 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
 
         if rel_cause:
             rc_html = _format_content_html(rel_cause)
-            html_parts.append('<div style="color: #E2E8F0; margin-bottom: 6px;"><strong>🎯 Causa Raiz (identificada):</strong></div>')
+            html_parts.append(f'<div style="color: #E2E8F0; margin-bottom: 6px;"><strong>{texts["root_cause_label"]}</strong></div>')
             html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{rc_html}</div>')
 
         html_parts.append('</div>')
@@ -544,7 +544,7 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
         action_plan = sections.get('action_plan', '').strip()
 
         html_parts.append('<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; border-radius: 6px; padding: 10px; margin-top: 10px;">')
-        html_parts.append('<div style="color: #FBBF24; font-weight: 600; margin-bottom: 5px;">📋 Dados Relevantes:</div>')
+        html_parts.append(f'<div style="color: #FBBF24; font-weight: 600; margin-bottom: 5px;">{texts["relevant_data"]}</div>')
 
         # Intro (texto livre antes das seções)
         if intro:
@@ -554,14 +554,14 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
         # Causa Raiz dentro dos dados (se presente)
         if root_cause_in_data:
             rc_html = _format_content_html(root_cause_in_data)
-            html_parts.append('<div style="color: #E2E8F0; margin-bottom: 8px;"><strong>🎯 Causa Raiz:</strong></div>')
+            html_parts.append(f'<div style="color: #E2E8F0; margin-bottom: 8px;"><strong>{texts["root_cause_label"]}</strong></div>')
             html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5; margin-bottom: 8px;">{rc_html}</div>')
 
         # Plano de Ação: normalize e apresenta como lista
         if action_plan:
             actions = _split_actions_to_list(action_plan)
             if actions:
-                html_parts.append('<div style="color: #FBBF24; font-weight: 600; margin-bottom: 6px;">🔧 Plano de Ação Definido:</div>')
+                html_parts.append(f'<div style="color: #FBBF24; font-weight: 600; margin-bottom: 6px;">{texts["action_plan_defined"]}</div>')
                 html_parts.append('<ul style="color: #E2E8F0; margin: 0 0 8px 18px; line-height: 1.5;">')
                 for act in actions:
                     act_html = _format_content_html(act)
@@ -620,20 +620,26 @@ def _render_conclusion(details: Dict, texts: Dict) -> None:
     if not raw_response:
         return
     
-    # Extrair a seção "Conclusão Final" do raw_response
-    conclusion_section = _extract_section_from_raw_response(raw_response, "Conclusão Final")
+    # Extrair a seção "Conclusão Final" ou "Final Conclusion" do raw_response
+    section_label = "Conclusão Final" if "conclusão final" in raw_response.lower() else "Final Conclusion"
+    conclusion_section = _extract_section_from_raw_response(raw_response, section_label)
+    
+    if not conclusion_section:
+        # Tenta pegar pela chave do dicionário caso a acima falhe
+        conclusion_section = details.get("ai_results", {}).get("conclusion", "")
+        
     if not conclusion_section:
         return
     
     # Estilo premium para conclusão do raw response (roxo, como definido em raw_response.py)
     style_conclusion_raw = "background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(196, 181, 253, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.3); border-left: 4px solid #A855F7; border-radius: 10px; padding: 20px 25px;"
     
-    with st.expander("🏁 Conclusão Final"):
+    with st.expander(texts["conclusion_expander"]):
         # Header estilizado
         st.markdown(f'''
         <div style="{style_conclusion_raw}">
             <h4 style="color: #C4B5FD; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
-                🏁 Conclusão Final da Análise
+                {texts["conclusion_title"]}
             </h4>
             <div style="color: #E2E8F0; line-height: 1.7; font-size: 1.05em;">
                 {html_lib.escape(conclusion_section)}
@@ -745,32 +751,32 @@ def _render_history_card(failure: Dict, index: int, texts: Dict) -> None:
     
     # Grid com Área e Equipamento
     html_parts.append('<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">')
-    html_parts.append(f'<div><span style="color: #A855F7; font-weight: 600;">🏭 Área:</span> <span style="color: #E2E8F0;">{area_esc}</span></div>')
-    html_parts.append(f'<div><span style="color: #A855F7; font-weight: 600;">⚙️ Equipamento:</span> <span style="color: #E2E8F0;">{equipment_esc}</span></div>')
+    html_parts.append(f'<div><span style="color: #A855F7; font-weight: 600;">🏭 {texts["area"]}:</span> <span style="color: #E2E8F0;">{area_esc}</span></div>')
+    html_parts.append(f'<div><span style="color: #A855F7; font-weight: 600;">⚙️ {texts["equipment"]}:</span> <span style="color: #E2E8F0;">{equipment_esc}</span></div>')
     html_parts.append('</div>')
     
     # Subgrupo
     html_parts.append('<div style="margin-bottom: 10px;">')
-    html_parts.append(f'<span style="color: #A855F7; font-weight: 600;">📦 Subgrupo:</span> <span style="color: #E2E8F0;">{subgroup_esc}</span>')
+    html_parts.append(f'<span style="color: #A855F7; font-weight: 600;">📦 {texts["subgroup"]}:</span> <span style="color: #E2E8F0;">{subgroup_esc}</span>')
     html_parts.append('</div>')
     
     # Descrição
     html_parts.append('<div style="background: rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 10px; margin-top: 10px;">')
-    html_parts.append('<div style="color: #A855F7; font-weight: 600; margin-bottom: 5px;">📝 Descrição:</div>')
+    html_parts.append(f'<div style="color: #A855F7; font-weight: 600; margin-bottom: 5px;">📝 {texts["description"]}:</div>')
     html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{description_esc}</div>')
     html_parts.append('</div>')
     
     # Causa Raiz (opcional)
     if root_cause_esc:
         html_parts.append('<div style="background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22C55E; border-radius: 6px; padding: 10px; margin-top: 10px;">')
-        html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">🎯 Causa Raiz:</div>')
+        html_parts.append(f'<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">🎯 {texts["root_cause_label"]}</div>')
         html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{root_cause_esc}</div>')
         html_parts.append('</div>')
     
     # Ação Corretiva (opcional)
     if action_esc:
         html_parts.append('<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; border-radius: 6px; padding: 10px; margin-top: 10px;">')
-        html_parts.append('<div style="color: #FBBF24; font-weight: 600; margin-bottom: 5px;">🔧 Ação Corretiva:</div>')
+        html_parts.append(f'<div style="color: #FBBF24; font-weight: 600; margin-bottom: 5px;">🔧 {texts["action_plan_defined"]}</div>')
         html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{action_esc}</div>')
         html_parts.append('</div>')
     
