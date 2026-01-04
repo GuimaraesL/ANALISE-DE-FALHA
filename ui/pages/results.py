@@ -11,6 +11,7 @@ import html as html_lib
 from datetime import datetime
 from typing import Dict, Any, List
 import logging
+import re
 
 from ui.texts import TEXTS
 from ui.components import plot_ishikawa, display_five_whys, display_raw_response
@@ -205,9 +206,63 @@ def _render_history(details: Dict, texts: Dict, lang_code: str) -> None:
             </div>
             """, unsafe_allow_html=True)
             st.markdown(details["refined_history"])
+            
+            # Adicionar Conclusão Final do Raw Response abaixo
+            _render_raw_response_conclusion(details, texts)
+
+
+def _render_raw_response_conclusion(details: Dict, texts: Dict) -> None:
+    """
+    Renderiza a seção 'Conclusão Final' extraída da resposta bruta da IA.
     
-    # Conclusão Final (visual premium)
-    _render_conclusion(details, texts)
+    Extrai e exibe a conclusão final do raw_response com visual premium,
+    mantendo consistência com o estilo das outras seções.
+    """
+    raw_response = details.get("ai_results", {}).get("raw_response", "")
+    if not raw_response:
+        return
+    
+    # Extrair a seção "Conclusão Final" do raw_response
+    conclusion_section = _extract_section_from_raw_response(raw_response, "Conclusão Final")
+    if not conclusion_section:
+        return
+    
+    # Estilo premium para conclusão do raw response (roxo, como definido em raw_response.py)
+    style_conclusion_raw = "background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(196, 181, 253, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.3); border-left: 4px solid #A855F7; border-radius: 10px; padding: 15px 20px; margin-top: 15px;"
+    
+    st.markdown(f'''
+    <div style="{style_conclusion_raw}">
+        <h4 style="color: #C4B5FD; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+            🏁 Conclusão Final (Raw Response)
+        </h4>
+        <div style="color: #E2E8F0; line-height: 1.7; font-size: 1.05em;">
+            {html_lib.escape(conclusion_section)}
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
+
+def _extract_section_from_raw_response(raw_response: str, section_title: str) -> str:
+    """
+    Extrai uma seção específica da resposta bruta da IA.
+    
+    Args:
+        raw_response: Texto bruto da resposta da IA.
+        section_title: Título da seção a extrair (ex: "Conclusão Final").
+    
+    Returns:
+        Conteúdo da seção ou string vazia se não encontrada.
+    """
+    # Padrão para encontrar seções no formato **Título**
+    sections = re.split(r'\*\*([^*]+)\*\*', raw_response)
+    
+    for i in range(1, len(sections), 2):
+        title = sections[i].strip()
+        content = sections[i + 1] if i + 1 < len(sections) else ""
+        if section_title in title:
+            return content.strip()
+    
+    return ""
 
 
 def _render_conclusion(details: Dict, texts: Dict) -> None:
