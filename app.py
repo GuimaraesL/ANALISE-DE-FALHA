@@ -136,10 +136,9 @@ def main() -> None:
         # Executa análise
         run_analysis(config)
     
-    # 4. Renderiza resultados se existirem
+    # 4. Renderiza resultados se existirem (usa idioma ATUAL da sidebar)
     if "results" in st.session_state and st.session_state["results"]:
-        lang_code = st.session_state.get("lang_code", config["lang_code"])
-        render_results(lang_code)
+        render_results(config["lang_code"])
 
 
 if __name__ == "__main__":
