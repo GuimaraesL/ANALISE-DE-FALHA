@@ -134,13 +134,14 @@ class FailureAnalysisApp:
             logger.error(f"Falha ao salvar log do prompt para a pasta {folder_name}: {e}")
 
 
-    def process_folder(self, folder_path: Path, progress_bar, status_text, processed_count, total_items) -> tuple[dict, int]:
+    def process_folder(self, folder_path: Path, progress_bar, status_text, processed_count, total_items, media_contexts: dict = None) -> tuple[dict, int]:
         """
         Processa uma única pasta, atualizando a UI em tempo real.
         Retorna o dicionário de resultado e o novo contador de itens processados.
         """
         folder_name = folder_path.name
         texts = TEXTS[self.language]
+        media_contexts = media_contexts or {}
 
         # --- Processa Excel ---
         excel_files = list(folder_path.glob("*.xlsx"))
@@ -169,7 +170,7 @@ class FailureAnalysisApp:
             video_files = self._find_files(folder_path, VIDEO_EXTENSIONS)
             if video_files:
                 status_text.info(texts["analyzing_videos"].format(count=len(video_files), folder_name=folder_name))
-                video_results = self.video_analyzer.analyze_videos(video_files)
+                video_results = self.video_analyzer.analyze_videos(video_files, contexts=media_contexts)
                 processed_count += len(video_files)
                 progress_bar.progress(processed_count / total_items)
 
@@ -180,7 +181,7 @@ class FailureAnalysisApp:
             image_files = self._find_files(folder_path, IMAGE_EXTENSIONS) + pdf_images
             if image_files:
                 status_text.info(texts["analyzing_images"].format(count=len(image_files), folder_name=folder_name))
-                image_results = self.image_analyzer.analyze_images(image_files)
+                image_results = self.image_analyzer.analyze_images(image_files, contexts=media_contexts)
                 processed_count += len(image_files)
                 progress_bar.progress(processed_count / total_items)
 
@@ -261,12 +262,13 @@ class FailureAnalysisApp:
         return result_data, processed_count
         
 
-    def run(self):
+    def run(self, media_contexts: dict = None):
         """
         Orquestra a análise de todas as pastas, gerenciando a interface
         do usuário com uma barra de progresso granular.
         """
         texts = TEXTS[self.language]
+        media_contexts = media_contexts or {}
         logger.info(f"Iniciando varredura na pasta: {self.root_folder}")
 
         if not self.root_folder.exists() or not self.root_folder.is_dir():
@@ -304,7 +306,7 @@ class FailureAnalysisApp:
 
         for folder in folders_to_process:
             result, processed_items_count = self.process_folder(
-                folder, progress_bar, status_text, processed_items_count, total_items
+                folder, progress_bar, status_text, processed_items_count, total_items, media_contexts=media_contexts
             )
             self.results.append(result)
 

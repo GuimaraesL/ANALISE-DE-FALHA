@@ -66,7 +66,7 @@ def setup_google_credentials() -> None:
         logger.warning(f"Credenciais não encontradas: {credentials_path}")
 
 
-def run_analysis(config: dict) -> None:
+def run_analysis(config: dict, media_contexts: dict = None) -> None:
     """
     Executa o pipeline de análise de falhas.
     
@@ -94,7 +94,7 @@ def run_analysis(config: dict) -> None:
         language=config["lang_code"]
     )
     
-    app.run()
+    app.run(media_contexts=media_contexts)
     
     # Limpar mensagem de processamento
     processing_msg.empty()
@@ -125,7 +125,48 @@ def main() -> None:
     # 2. Renderiza sidebar e obtém configurações
     config = render_sidebar()
     
-    # 3. Processa execução se botão foi pressionado
+    # 3. Seções de Mídias com Contexto
+    media_contexts = {}
+    texts = config["texts"]
+    
+    if config["enable_images"] or config["enable_videos"]:
+        st.write("---")
+        st.subheader("💡 " + texts["media_context_header"])
+        
+        # Encontrar subpastas com mídias para mostrar campos de contexto
+        root = Path(config["root_folder"])
+        if root.exists() and root.is_dir():
+            folders = [f for f in root.rglob("*") if f.is_dir() and list(f.glob("*.xlsx"))]
+            for folder in folders:
+                st.markdown(f"**📁 {folder.name}**")
+                
+                # Contexto para Imagens
+                if config["enable_images"]:
+                    from core.failure_analysis_app import IMAGE_EXTENSIONS
+                    imgs = []
+                    for ext in IMAGE_EXTENSIONS:
+                        imgs.extend(folder.glob(ext))
+                    if imgs:
+                        with st.expander(f"🖼️ {texts['images']} ({len(imgs)})"):
+                            for img in imgs:
+                                ctx = st.text_input(f"{texts['media_context_label']}: {img.name}", key=f"ctx_img_{img.name}")
+                                if ctx:
+                                    media_contexts[img.name] = ctx
+                
+                # Contexto para Vídeos
+                if config["enable_videos"]:
+                    from core.failure_analysis_app import VIDEO_EXTENSIONS
+                    vids = []
+                    for ext in VIDEO_EXTENSIONS:
+                        vids.extend(folder.glob(ext))
+                    if vids:
+                        with st.expander(f"📹 {texts['videos']} ({len(vids)})"):
+                            for vid in vids:
+                                ctx = st.text_input(f"{texts['media_context_label']}: {vid.name}", key=f"ctx_vid_{vid.name}")
+                                if ctx:
+                                    media_contexts[vid.name] = ctx
+
+    # 4. Processa execução se botão foi pressionado
     if config["execute"]:
         # Valida configurações (Fail Fast)
         error_message = validate_config(config)
@@ -134,9 +175,9 @@ def main() -> None:
             return
         
         # Executa análise
-        run_analysis(config)
+        run_analysis(config, media_contexts)
     
-    # 4. Renderiza resultados se existirem (usa idioma ATUAL da sidebar)
+    # 5. Renderiza resultados se existirem (usa idioma ATUAL da sidebar)
     if "results" in st.session_state and st.session_state["results"]:
         render_results(config["lang_code"])
 

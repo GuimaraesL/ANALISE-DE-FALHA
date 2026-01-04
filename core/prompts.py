@@ -348,9 +348,9 @@ def critical_notes(language="pt"):
         """
     )
 
-def build_video_prompt(filename: str, language: str = "pt") -> str:
+def build_video_prompt(filename: str, language: str = "pt", context: str = "") -> str:
     if language == "en":
-        return f"""
+        prompt = f"""
     You will receive a video file named '{filename}'.
 
     Carefully analyze the visual content of this video, which shows metallurgical equipment in operation (or failure). Your goal is to extract technical and safety-related insights from the footage.
@@ -364,7 +364,7 @@ def build_video_prompt(filename: str, language: str = "pt") -> str:
     ⚠️ Be as objective and engineering-oriented as possible. Do not speculate about causes — focus on what is visible and technically relevant.
     """
     else:
-         return f"""
+         prompt = f"""
     Você receberá um vídeo chamado '{filename}'.
 
     Analise cuidadosamente o conteúdo visual do vídeo, que mostra o funcionamento (ou falha) de um equipamento metalúrgico. Seu objetivo é extrair observações técnicas e de segurança com base nas imagens.
@@ -377,3 +377,15 @@ def build_video_prompt(filename: str, language: str = "pt") -> str:
 
     ⚠️ Seja objetivo e técnico. Não especule sobre causas — descreva apenas o que for visivelmente relevante.
     """
+    
+    if context:
+        context_prompt = (
+            f"\n\n**CONTEXTO DO USUÁRIO:** O usuário forneceu a seguinte informação adicional sobre este vídeo: \"{context}\". "
+            "Use esta informação para guiar sua análise, focando ou confirmando o que foi mencionado se for perceptível no vídeo."
+            if language == "pt" else
+            f"\n\n**USER CONTEXT:** The user provided the following additional information about this video: \"{context}\". "
+            "Use this information to guide your analysis, focusing on or confirming what was mentioned if it is perceptible in the video."
+        )
+        prompt += context_prompt
+        
+    return prompt

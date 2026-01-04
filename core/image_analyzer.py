@@ -20,7 +20,7 @@ class ImageAnalyzer:
         self.model = genai.GenerativeModel("gemini-2.5-flash")
         self.language = language
 
-    def analyze_image(self, image_path: Path) -> str:
+    def analyze_image(self, image_path: Path, context: str = "") -> str:
         try:
             with open(image_path, "rb") as image_file:
                 image_data = image_file.read()
@@ -74,6 +74,16 @@ class ImageAnalyzer:
                 - **Avoid vague assumptions**, but **you may infer** based on strong visual cues.
                 - The goal is to generate a technical field-style observation report.
             """
+
+            if context:
+                context_prompt = (
+                    f"\n\n**CONTEXTO DO USUÁRIO:** O usuário forneceu a seguinte informação adicional sobre esta imagem: \"{context}\". "
+                    "Use esta informação para guiar sua análise, confirmando ou analisando especificamente o que foi mencionado se for visível."
+                    if self.language == "pt" else
+                    f"\n\n**USER CONTEXT:** The user provided the following additional information about this image: \"{context}\". "
+                    "Use this information to guide your analysis, confirming or specifically analyzing what was mentioned if it is visible."
+                )
+                prompt += context_prompt
             response = self.model.generate_content([
                 prompt,
                 {"mime_type": mime_type, "data": image_data} # Usa a variável mime_type
@@ -89,11 +99,12 @@ class ImageAnalyzer:
         except Exception as e:
             return f"📷 **{image_path.name}**\n\nErro ao analisar imagem: {str(e)}"
 
-    def analyze_images(self, image_paths: List[Path], enable_images: bool = True) -> str:
+    def analyze_images(self, image_paths: List[Path], enable_images: bool = True, contexts: dict = None) -> str:
         if not enable_images:
             return "Análise de imagens desabilitada" if self.language == "pt" else "Image analysis disabled"
 
-        results = [self.analyze_image(img) for img in image_paths]
+        contexts = contexts or {}
+        results = [self.analyze_image(img, contexts.get(img.name, "")) for img in image_paths]
         return "\n\n---\n\n".join(results) if results else (
             "Nenhuma imagem processada" if self.language == "pt" else "No images processed"
         )

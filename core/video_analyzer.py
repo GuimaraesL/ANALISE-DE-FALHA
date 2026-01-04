@@ -43,7 +43,7 @@ class VideoAnalyzer:
         self.model = genai.GenerativeModel("models/gemini-2.5-flash")
         self.language = language
 
-    def analyze_video(self, video_path: Path) -> str:
+    def analyze_video(self, video_path: Path, context: str = "") -> str:
         """
         Analisa um único arquivo de vídeo usando a API do Gemini.
         Este método agora faz o upload do arquivo primeiro, que é a prática recomendada.
@@ -64,7 +64,7 @@ class VideoAnalyzer:
                 raise ValueError(f"Processamento do arquivo de vídeo falhou: {video_file.name}")
 
             # Gera o conteúdo usando o arquivo processado e o prompt
-            prompt = build_video_prompt(video_path.name, self.language)
+            prompt = build_video_prompt(video_path.name, self.language, context)
             response = self.model.generate_content([prompt, video_file])
             
             # Limpa o arquivo da API após o uso para não acumular dados
@@ -78,11 +78,12 @@ class VideoAnalyzer:
             logging.error(error_message)
             return f"📹 **{video_path.name}**\n\n{error_message}"
 
-    def analyze_videos(self, video_paths: List[Path]) -> str:
+    def analyze_videos(self, video_paths: List[Path], contexts: dict = None) -> str:
         """Analisa uma lista de caminhos de vídeo."""
         if not video_paths:
             lang_texts = TEXTS.get(self.language, TEXTS.get('en', {}))
             return lang_texts.get("no_video_found", "No videos found")
             
-        results = [self.analyze_video(path) for path in video_paths]
+        contexts = contexts or {}
+        results = [self.analyze_video(path, contexts.get(path.name, "")) for path in video_paths]
         return "\n\n---\n\n".join(results)
