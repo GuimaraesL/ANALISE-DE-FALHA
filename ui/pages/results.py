@@ -256,54 +256,61 @@ def _parse_correlated_failures(refined_history: str) -> List[Dict[str, str]]:
         line = line.strip()
         if not line:
             continue
-            
-        # Detecta início de nova falha
-        if line.startswith('- **Falha Histórica') or line.startswith('**Falha Histórica'):
+
+        # Detecta início de nova falha (padrões com ou sem marcador '-')
+        if re.match(r'^(?:-\s*)?\*\*Falha Hist[oó]rica\s+\d+:\*\*', line, flags=re.IGNORECASE):
             # Salva falha anterior se existir
-            if current_failure and 'description' in current_failure:
+            if current_failure and current_failure.get('description'):
+                # limpa marcadores markdown
+                current_failure = {k: re.sub(r'\*\*', '', v).strip() if isinstance(v, str) else v for k, v in current_failure.items()}
                 failures.append(current_failure)
-            
+
             # Nova falha
-            current_failure = {'description': '', 'relevance': '', 'data': ''}
-            # Extrai a descrição da falha
-            desc_match = re.search(r'\*\*Falha Histórica \d+:\*\*\s*(.+)', line)
+            current_failure = {'description': '', 'relevance': '', 'data': '', 'date': ''}
+            # Extrai a descrição da falha (após os asteriscos)
+            desc_match = re.search(r'\*\*Falha Hist[oó]rica\s+\d+:\*\*\s*(.+)', line, flags=re.IGNORECASE)
             if desc_match:
                 current_failure['description'] = desc_match.group(1).strip()
             current_key = 'description'
-            
-        elif line.startswith('- **Relevância:**') or line.startswith('**Relevância:**'):
+
+        elif re.match(r'^(?:-\s*)?\*\*Relev[aã]ncia:\*\*', line, flags=re.IGNORECASE):
             current_key = 'relevance'
-            # Extrai o texto da relevância
-            rel_match = re.search(r'\*\*Relevância:\*\*\s*(.+)', line)
+            rel_match = re.search(r'\*\*Relev[aã]ncia:\*\*\s*(.+)', line, flags=re.IGNORECASE)
             if rel_match:
                 current_failure['relevance'] = rel_match.group(1).strip()
-                
-        elif line.startswith('- **Dados Relevantes:**') or line.startswith('**Dados Relevantes:**'):
+
+        elif re.match(r'^(?:-\s*)?\*\*Dados Relevantes:\*\*', line, flags=re.IGNORECASE):
             current_key = 'data'
-            # Extrai os dados relevantes
-            data_match = re.search(r'\*\*Dados Relevantes:\*\*\s*(.+)', line)
+            data_match = re.search(r'\*\*Dados Relevantes:\*\*\s*(.+)', line, flags=re.IGNORECASE)
             if data_match:
                 current_failure['data'] = data_match.group(1).strip()
-                
-        elif current_key and line.startswith('- '):
-            # Linha adicional para a seção atual
-            content = line[2:].strip()  # Remove o "- "
-            if current_failure.get(current_key):
-                current_failure[current_key] += '\n' + content
-            else:
-                current_failure[current_key] = content
-                
-        elif current_key and not line.startswith('- ') and not line.startswith('**'):
-            # Continuação do texto atual
-            if current_failure.get(current_key):
-                current_failure[current_key] += ' ' + line
-            else:
-                current_failure[current_key] = line
+
+        else:
+            # Conteúdo complementar: pode pertencer a seção atual
+            if current_key:
+                # linhas iniciando com '-' são itens, removemos o marcador
+                if line.startswith('- '):
+                    content = line[2:].strip()
+                else:
+                    content = line
+
+                if current_failure.get(current_key):
+                    # mantém quebras de linha para melhor formatação
+                    current_failure[current_key] += '\n' + content
+                else:
+                    current_failure[current_key] = content
+
+        # Sempre que tivermos dados, tente extrair uma data no formato dd/mm/yyyy
+        if current_failure and current_failure.get('data'):
+            date_search = re.search(r'(\d{2}/\d{2}/\d{4})', current_failure['data'])
+            if date_search:
+                current_failure['date'] = date_search.group(1)
     
     # Adiciona última falha
-    if current_failure and 'description' in current_failure:
+    if current_failure and current_failure.get('description'):
+        current_failure = {k: re.sub(r'\*\*', '', v).strip() if isinstance(v, str) else v for k, v in current_failure.items()}
         failures.append(current_failure)
-    
+
     return failures
 
 
@@ -326,30 +333,43 @@ def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None
     # Container principal (mesmo estilo do histórico bruto)
     html_parts.append(f'<div style="{STYLE_HISTORY_CARD}">')
     
-    # Header com número (igual ao histórico bruto)
+    # Header com número (igual ao histórico bruto) e data à direita
+    date_val = failure.get('date', '')
+    date_esc = html_lib.escape(date_val) if date_val else ''
     html_parts.append('<div style="display: flex; align-items: center; margin-bottom: 12px;">')
     html_parts.append(f'<div style="width: 32px; height: 32px; background: linear-gradient(135deg, #22C55E 0%, #4ADE80 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; margin-right: 12px;">{index}</div>')
     html_parts.append(f'<div style="color: #4ADE80; font-weight: 600; font-size: 1.1em;">Falha Correlacionada #{index}</div>')
+    if date_esc:
+        html_parts.append(f'<div style="margin-left: auto; color: #9CA3AF; font-size: 0.9em;">📅 {date_esc}</div>')
     html_parts.append('</div>')
     
     # Descrição da falha (seguindo o padrão do histórico bruto)
     html_parts.append('<div style="background: rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 10px; margin-top: 10px;">')
     html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">📝 Descrição da Falha:</div>')
-    html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{description_esc}</div>')
+    # Quebra de parágrafos: preserva quebras de linha
+    description_html = '<br>'.join(html_lib.escape(line.strip()) for line in str(description).split('\n') if line.strip())
+    html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{description_html}</div>')
     html_parts.append('</div>')
     
     # Relevância (usando o estilo verde do histórico bruto para causa raiz)
     if relevance_esc:
+        relevance_html = '<br>'.join(html_lib.escape(line.strip()) for line in str(relevance).split('\n') if line.strip())
         html_parts.append('<div style="background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22C55E; border-radius: 6px; padding: 10px; margin-top: 10px;">')
         html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">🎯 Relevância Técnica:</div>')
-        html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{relevance_esc}</div>')
+        html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{relevance_html}</div>')
         html_parts.append('</div>')
     
     # Dados relevantes (usando o estilo laranja do histórico bruto para ações)
     if data_esc:
+        # Extrai novamente a data para exibir (caso não tivesse sido capturada antes)
+        if not date_esc:
+            date_match = re.search(r'(\d{2}/\d{2}/\d{4})', data_esc)
+            if date_match:
+                date_esc = date_match.group(1)
+        data_html = '<br>'.join(html_lib.escape(line.strip()) for line in str(data).split('\n') if line.strip())
         html_parts.append('<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; border-radius: 6px; padding: 10px; margin-top: 10px;">')
         html_parts.append('<div style="color: #FBBF24; font-weight: 600; margin-bottom: 5px;">📋 Dados Relevantes:</div>')
-        html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{data_esc}</div>')
+        html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{data_html}</div>')
         html_parts.append('</div>')
     
     # Fecha container principal
