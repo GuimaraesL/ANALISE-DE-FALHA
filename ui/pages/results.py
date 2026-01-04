@@ -85,6 +85,7 @@ def _render_single_result(result: Dict[str, Any], texts: Dict[str, str], lang_co
     _render_ishikawa(details, texts, lang_code)
     _render_five_whys(details, texts, lang_code)
     _render_history(details, texts, lang_code)
+    _render_conclusion(details, texts)
     _render_tokens(result, texts)
     _render_download_button(result, texts, lang_code)
 
@@ -206,40 +207,6 @@ def _render_history(details: Dict, texts: Dict, lang_code: str) -> None:
             </div>
             """, unsafe_allow_html=True)
             st.markdown(details["refined_history"])
-            
-            # Adicionar Conclusão Final do Raw Response abaixo
-            _render_raw_response_conclusion(details, texts)
-
-
-def _render_raw_response_conclusion(details: Dict, texts: Dict) -> None:
-    """
-    Renderiza a seção 'Conclusão Final' extraída da resposta bruta da IA.
-    
-    Extrai e exibe a conclusão final do raw_response com visual premium,
-    mantendo consistência com o estilo das outras seções.
-    """
-    raw_response = details.get("ai_results", {}).get("raw_response", "")
-    if not raw_response:
-        return
-    
-    # Extrair a seção "Conclusão Final" do raw_response
-    conclusion_section = _extract_section_from_raw_response(raw_response, "Conclusão Final")
-    if not conclusion_section:
-        return
-    
-    # Estilo premium para conclusão do raw response (roxo, como definido em raw_response.py)
-    style_conclusion_raw = "background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(196, 181, 253, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.3); border-left: 4px solid #A855F7; border-radius: 10px; padding: 15px 20px; margin-top: 15px;"
-    
-    st.markdown(f'''
-    <div style="{style_conclusion_raw}">
-        <h4 style="color: #C4B5FD; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
-            🏁 Conclusão Final (Raw Response)
-        </h4>
-        <div style="color: #E2E8F0; line-height: 1.7; font-size: 1.05em;">
-            {html_lib.escape(conclusion_section)}
-        </div>
-    </div>
-    ''', unsafe_allow_html=True)
 
 
 def _extract_section_from_raw_response(raw_response: str, section_title: str) -> str:
@@ -267,28 +234,32 @@ def _extract_section_from_raw_response(raw_response: str, section_title: str) ->
 
 def _render_conclusion(details: Dict, texts: Dict) -> None:
     """
-    Renderiza a conclusão final da análise com visual premium.
+    Renderiza a seção 'Conclusão Final' extraída da resposta bruta da IA.
     
-    Exibe a conclusão em um card estilizado com gradiente âmbar,
-    destacando a síntese final da análise RCA.
+    Extrai e exibe a conclusão final do raw_response com visual premium,
+    mantendo consistência com o estilo das outras seções.
     """
-    conclusion = details.get("conclusion", "")
-    
-    if not conclusion:
+    raw_response = details.get("ai_results", {}).get("raw_response", "")
+    if not raw_response:
         return
     
-    # Estilo premium para conclusão (âmbar/laranja)
-    style_conclusion = "background: linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(251, 191, 36, 0.1) 100%); border: 1px solid rgba(245, 158, 11, 0.3); border-left: 4px solid #F59E0B; border-radius: 10px; padding: 20px 25px; margin-top: 15px;"
+    # Extrair a seção "Conclusão Final" do raw_response
+    conclusion_section = _extract_section_from_raw_response(raw_response, "Conclusão Final")
+    if not conclusion_section:
+        return
     
-    with st.expander(texts["conclusion_expander"]):
+    # Estilo premium para conclusão do raw response (roxo, como definido em raw_response.py)
+    style_conclusion_raw = "background: linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(196, 181, 253, 0.1) 100%); border: 1px solid rgba(168, 85, 247, 0.3); border-left: 4px solid #A855F7; border-radius: 10px; padding: 20px 25px;"
+    
+    with st.expander("🏁 Conclusão Final"):
         # Header estilizado
         st.markdown(f'''
-        <div style="{style_conclusion}">
-            <h4 style="color: #FBBF24; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
-                🎯 {texts["conclusion_title"]}
+        <div style="{style_conclusion_raw}">
+            <h4 style="color: #C4B5FD; margin: 0 0 15px 0; display: flex; align-items: center; gap: 10px;">
+                🏁 Conclusão Final da Análise
             </h4>
             <div style="color: #E2E8F0; line-height: 1.7; font-size: 1.05em;">
-                {html_lib.escape(str(conclusion))}
+                {html_lib.escape(conclusion_section)}
             </div>
         </div>
         ''', unsafe_allow_html=True)
