@@ -1,76 +1,159 @@
-### README.md
+# 🔍 Sistema Inteligente de Análise de Causa Raiz (RCA) com IA
 
-````markdown
-# Sistema Inteligente de Análise de Causa Raiz (RCA) com IA
+![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)
+![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-green.svg)
+![License](https://img.shields.io/badge/License-MIT-yellow.svg)
+![Gemini](https://img.shields.io/badge/Google-Gemini%202.5-purple.svg)
 
-Este projeto é um aplicativo web construído com Streamlit e Python, projetado para automatizar e aprimorar o processo de Análise de Causa Raiz (RCA) de falhas em equipamentos industriais. A aplicação utiliza o poder dos modelos de linguagem da Google (Gemini) para analisar dados multimodais e gerar relatórios técnicos estruturados.
+> **Automatiza a análise de causa raiz de falhas industriais usando IA multimodal com RAG de 2 estágios para correlação histórica.**
 
-![Interface do App](https'://i.imgur.com/your-app-screenshot.png')  ---
+---
+
+## 📖 Sobre o Projeto
+
+Este projeto é uma aplicação web construída com **Streamlit** e **Python** que automatiza o processo de **Análise de Causa Raiz (RCA)** de falhas em equipamentos industriais. A aplicação utiliza os modelos de linguagem da **Google (Gemini 2.5)** para analisar dados multimodais (Excel, imagens, vídeos) e gerar relatórios técnicos estruturados seguindo metodologias consagradas como **Diagrama de Ishikawa** e **5 Porquês**.
+
+---
 
 ## ✨ Funcionalidades Principais
 
-* **Análise Multimodal:** Processa informações de diversas fontes para criar um contexto rico:
-    * **Arquivos Excel:** Extrai dados estruturados sobre a falha (área, equipamento, descrição).
-    * **Imagens e Vídeos:** Utiliza IA para analisar evidências visuais e gerar laudos técnicos.
-* **Inteligência Aumentada por Histórico (RAG):**
-    * O "4º Pilar" do sistema. A aplicação consulta um banco de dados JSON com falhas históricas.
-    * **RAG de Dois Estágios:** Primeiro, filtra um conjunto de falhas relacionadas por equipamento e, em seguida, usa um prompt de IA intermediário para selecionar os 3 casos históricos mais relevantes semanticamente.
-* **Geração Automática de Relatórios:**
-    * Cria um relatório completo da análise no formato Markdown.
-    * Inclui ferramentas de RCA padronizadas: **Diagrama de Ishikawa** e **5 Porquês**.
-    * Propõe um **Plano de Ação** e uma **Conclusão** final baseada em todas as evidências.
-* **Interface Interativa:** Interface web construída com Streamlit, permitindo uma experiência de usuário amigável e intuitiva.
-* **Suporte a Múltiplos Idiomas:** A interface e os relatórios podem ser gerados em Português e Inglês.
+| Funcionalidade | Descrição |
+|----------------|-----------|
+| 📊 **Análise Multimodal** | Processa arquivos Excel, imagens e vídeos simultaneamente |
+| 🔍 **RAG de 2 Estágios** | Busca e refina histórico de falhas para contexto enriquecido |
+| 🐟 **Diagrama de Ishikawa** | Geração automática de diagrama de causa e efeito |
+| ❓ **5 Porquês** | Análise estruturada com cards interativos |
+| 🎯 **Plano de Ação** | Recomendações práticas baseadas na análise |
+| 🌐 **Bilíngue** | Suporte completo a Português e Inglês |
+| 📥 **Export Markdown** | Download de relatórios no formato .md |
 
 ---
 
-## ⚙️ Como Funciona: O Fluxo Inteligente
+## 🏗️ Arquitetura do Sistema
 
-O aplicativo segue um fluxo de trabalho em múltiplos estágios para garantir uma análise precisa e contextualizada:
+### Fluxo de Dados
 
-1.  **Coleta de Dados:** O usuário seleciona uma pasta. O sistema localiza e carrega os arquivos `.xlsx`, imagens e vídeos.
-2.  **Análise de Mídias:** A IA analisa cada imagem e vídeo, gerando descrições textuais das observações.
-3.  **Busca no Histórico (RAG - Estágio 1):** O `HistoryManager` filtra o banco de dados `extracted_data.json` em busca de falhas passadas que ocorreram na mesma área, equipamento e subgrupo.
-4.  **Refinamento do Histórico (RAG - Estágio 2):** Um prompt de IA intermediário recebe a lista de falhas do estágio anterior e, com base no contexto da falha atual, seleciona os 3 casos históricos mais relevantes.
-5.  **Análise Final:** O modelo de IA principal (Gemini 2.5 Pro) recebe um dossiê completo contendo os dados do Excel, as análises de mídias e o histórico já refinado para gerar a análise de causa raiz.
-6.  **Geração do Relatório:** O `ReportGenerator` formata a saída da IA em um arquivo `.md` estruturado.
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           PIPELINE DE ANÁLISE                            │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  📁 ENTRADA              🔧 PROCESSAMENTO              📤 SAÍDA         │
+│  ════════                ═══════════════               ═══════          │
+│                                                                          │
+│  ┌─────────┐            ┌─────────────────┐                             │
+│  │ Pasta   │───────────▶│ ExcelReader     │──▶ Dados estruturados       │
+│  │ Excel   │            └─────────────────┘                             │
+│  │ Imagens │            ┌─────────────────┐                             │
+│  │ Vídeos  │───────────▶│ ImageAnalyzer   │──▶ Laudo técnico visual     │
+│  └─────────┘            │ (Gemini Flash)  │                             │
+│       │                 └─────────────────┘                             │
+│       │                 ┌─────────────────┐                             │
+│       └────────────────▶│ VideoAnalyzer   │──▶ Análise de movimento     │
+│                         │ (Gemini Flash)  │                             │
+│                         └─────────────────┘                             │
+│                                  │                                       │
+│  ┌─────────────┐                 ▼                                       │
+│  │ extracted_  │         ┌─────────────────┐                            │
+│  │ data.json   │────────▶│ HistoryManager  │                            │
+│  │ (Histórico) │         │ RAG Estágio 1   │                            │
+│  └─────────────┘         │ (Filtro)        │                            │
+│                          └────────┬────────┘                            │
+│                                   ▼                                      │
+│                          ┌─────────────────┐                            │
+│                          │ AIProcessor     │                            │
+│                          │ RAG Estágio 2   │──▶ Refinamento semântico   │
+│                          │ (Gemini Pro)    │                            │
+│                          └────────┬────────┘                            │
+│                                   ▼                                      │
+│                          ┌─────────────────┐      ┌──────────────┐      │
+│                          │ Análise Final   │─────▶│ Ishikawa     │      │
+│                          │ (Gemini 2.5 Pro)│      │ 5 Porquês    │      │
+│                          └─────────────────┘      │ Plano Ação   │      │
+│                                   │               │ Conclusão    │      │
+│                                   ▼               └──────────────┘      │
+│                          ┌─────────────────┐                            │
+│                          │ ReportGenerator │──▶ 📄 Relatório .md        │
+│                          └─────────────────┘                            │
+└──────────────────────────────────────────────────────────────────────────┘
+```
 
----
+### Sistema RAG de 2 Estágios
 
-## 🛠️ Tecnologias Utilizadas
+O diferencial deste sistema é o **RAG (Retrieval-Augmented Generation) de 2 estágios**:
 
-* **Linguagem:** Python 3.9+
-* **Framework Web:** Streamlit
-* **Inteligência Artificial:** Google Gemini API (modelos 1.5 Pro e 1.5 Flash)
-* **Manipulação de Dados:** Pandas
-* **Leitura de Excel:** Openpyxl
-* **Análise de Mídia:** OpenCV, Pillow (implícitas em outras bibliotecas)
-* **Normalização de Texto:** Unidecode
+1. **Estágio 1 - Filtro Estruturado** (`HistoryManager`)
+   - Busca no banco `extracted_data.json` por falhas com mesma Área + Equipamento + Subgrupo
+   - Normalização de texto (remove acentos, lowercase)
+   - Retorna lista ampla de candidatos
+
+2. **Estágio 2 - Refinamento Semântico** (`AIProcessor.refine_history_with_ai`)
+   - IA analisa contexto da falha atual vs candidatos
+   - Seleciona os 3 casos mais relevantes semanticamente
+   - Gera resumo contextualizado para o prompt final
 
 ---
 
 ## 📂 Estrutura do Projeto
 
 ```
-.
-├── core/
-│   ├── ai_processor.py         # Lida com as chamadas à API Gemini e o parsing da resposta.
-│   ├── excel_reader.py         # Extrai dados de arquivos .xlsx.
-│   ├── failure_analysis_app.py # Classe principal que orquestra todo o fluxo.
-│   ├── history_manager.py      # Gerencia a busca no histórico de falhas (JSON).
-│   ├── image_analyzer.py       # Analisa imagens com IA.
-│   ├── prompts.py              # Centraliza toda a engenharia de prompts.
-│   ├── report_generator.py     # Gera os relatórios finais em .md.
-│   └── video_analyzer.py       # Analisa vídeos com IA.
-├── relatorios/                   # Pasta onde os relatórios .md são salvos.
-├── ui/
-│   └── texts.py                # Dicionário com todos os textos para i18n (PT/EN).
-├── app.py                        # Ponto de entrada da aplicação Streamlit.
-├── config.json                   # Arquivo de configuração (chaves de API, etc.).
-├── extracted_data.json           # Banco de dados com o histórico de falhas.
-├── requirements.txt              # Dependências do projeto.
-└── styles.css                    # Estilização da interface.
+ANALISE-DE-FALHA/
+├── 📄 app.py                    # Ponto de entrada Streamlit (UI principal)
+├── 📄 test_ui_preview.py        # Preview de componentes UI sem gastar créditos
+├── 📄 config.json               # Configurações (API keys) - NÃO versionar!
+├── 📄 extracted_data.json       # Banco de dados histórico (~12MB)
+├── 📄 styles.css                # Estilos CSS premium para UI
+├── 📄 requirements.txt          # Dependências Python
+│
+├── 📁 core/                     # Lógica de negócio
+│   ├── __init__.py
+│   ├── ai_processor.py          # Montagem de prompt + Gemini 2.5 Pro
+│   ├── config_loader.py         # Carregador de config.json
+│   ├── excel_reader.py          # Extração de dados Excel (aba A3)
+│   ├── failure_analysis_app.py  # Orquestrador principal do pipeline
+│   ├── history_manager.py       # RAG Estágio 1 (filtro por área/equip)
+│   ├── image_analyzer.py        # Análise de imagens (Gemini Flash)
+│   ├── pdf_as_image_converter.py# Conversão PDF → Imagem
+│   ├── prompts.py               # Engenharia de prompts (18KB)
+│   ├── report_generator.py      # Gerador de relatórios .md
+│   └── video_analyzer.py        # Análise de vídeos (Gemini Flash)
+│
+├── 📁 ui/                       # Interface do usuário
+│   ├── __init__.py
+│   └── texts.py                 # Internacionalização (PT/EN)
+│
+├── 📁 relatorios/               # Relatórios gerados (saída)
+├── 📁 logs/                     # Logs de execução
+└── 📁 Site/                     # Assets para página web (opcional)
 ```
+
+---
+
+## 🛠️ Tecnologias Utilizadas
+
+| Categoria | Tecnologia | Versão |
+|-----------|------------|--------|
+| **Linguagem** | Python | 3.9+ |
+| **Framework Web** | Streamlit | 1.x |
+| **IA Principal** | Google Gemini 2.5 Pro | Latest |
+| **IA Auxiliar** | Google Gemini 2.5 Flash | Latest |
+| **Leitura Excel** | Openpyxl | 3.x |
+| **Normalização** | Unidecode | 1.x |
+| **Gráficos** | Matplotlib | 3.x |
+
+---
+
+## ⚙️ Restrições Técnicas e Padrões
+
+Este projeto segue padrões rigorosos de qualidade de código:
+
+| Padrão | Regra | Motivo |
+|--------|-------|--------|
+| 🛤️ **Pathlib** | `from pathlib import Path` obrigatório | Compatibilidade Windows/Linux |
+| 🚫 **print()** | Proibido, usar `logging` | Rastreabilidade e níveis de log |
+| ⚡ **Fail Fast** | Exceções específicas no core | Identificação rápida de erros |
+| 📦 **Stateless** | Classes sem estado desnecessário | Facilita testes e manutenção |
+| 🔒 **Config Seguro** | `config.json` no `.gitignore` | Proteção de API keys |
 
 ---
 
@@ -78,43 +161,134 @@ O aplicativo segue um fluxo de trabalho em múltiplos estágios para garantir um
 
 ### 1. Pré-requisitos
 
-* Python 3.9 ou superior
-* Acesso à API do Google Gemini
+- Python 3.9 ou superior
+- Chave da API do Google Gemini
+- (Opcional) Credenciais do Vertex AI para análise de vídeo
 
 ### 2. Instalação
 
-1.  **Clone o repositório:**
-    ```bash
-    git clone [URL_DO_SEU_REPOSITORIO]
-    cd [NOME_DA_PASTA_DO_PROJETO]
-    ```
+```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/ANALISE-DE-FALHA.git
+cd ANALISE-DE-FALHA
 
-2.  **Crie um ambiente virtual (recomendado):**
-    ```bash
-    python -m venv venv
-    # No Windows
-    .\venv\Scripts\activate
-    # No macOS/Linux
-    source venv/bin/activate
-    ```
+# Crie um ambiente virtual
+python -m venv venv
 
-3.  **Instale as dependências:**
-    ```bash
-    pip install -r requirements.txt
-    ```
+# Ative o ambiente (Windows)
+.\venv\Scripts\activate
+
+# Ative o ambiente (Linux/Mac)
+source venv/bin/activate
+
+# Instale as dependências
+pip install -r requirements.txt
+```
 
 ### 3. Configuração
 
-1.  **Chave da API do Gemini:** Abra o arquivo `config.json` e insira sua chave da API do Gemini no campo `"gemini_api_key"`.
-2.  **Credenciais do Vertex AI (se necessário para vídeo):** Garanta que o seu arquivo `vertex-key.json` (ou o nome que você definiu em `config.json`) esteja na pasta raiz do projeto.
+Crie um arquivo `config.json` na raiz do projeto:
+
+```json
+{
+    "gemini_api_key": "SUA_CHAVE_API_AQUI",
+    "google_credentials_path": "vertex-key.json"
+}
+```
 
 ### 4. Execução
 
-Para iniciar o aplicativo, execute o seguinte comando no seu terminal, a partir da pasta raiz do projeto:
-
 ```bash
+# Iniciar aplicação principal
+streamlit run app.py
+
+# Ou para testar UI sem gastar créditos
+streamlit run test_ui_preview.py
+```
+
+---
+
+## 🔧 Troubleshooting
+
+### Problema: "API key not found"
+
+**Causa:** Arquivo `config.json` não encontrado ou mal formatado.
+
+**Solução:**
+```bash
+# Verifique se o arquivo existe
+ls config.json
+
+# Verifique o conteúdo (JSON válido)
+cat config.json | python -m json.tool
+```
+
+### Problema: "Arquivo de histórico não encontrado"
+
+**Causa:** O arquivo `extracted_data.json` não está presente.
+
+**Solução:** Este arquivo contém o histórico de falhas para o RAG. Você precisa obtê-lo do sistema de extração ou criar um arquivo vazio:
+```json
+[]
+```
+
+### Problema: "Port 8501 already in use"
+
+**Causa:** Outra instância do Streamlit está rodando.
+
+**Solução:**
+```bash
+# Use outra porta
+streamlit run app.py --server.port 8502
+```
+
+### Problema: "ModuleNotFoundError: No module named 'core'"
+
+**Causa:** Você não está na pasta raiz do projeto.
+
+**Solução:**
+```bash
+cd C:\caminho\para\ANALISE-DE-FALHA
 streamlit run app.py
 ```
 
-O aplicativo será aberto automaticamente no seu navegador padrão.
-````
+### Problema: Análise de vídeo falhando
+
+**Causa:** Credenciais do Vertex AI não configuradas.
+
+**Solução:**
+1. Coloque o arquivo `vertex-key.json` na raiz do projeto
+2. Configure o caminho no `config.json`:
+   ```json
+   "google_credentials_path": "vertex-key.json"
+   ```
+
+---
+
+## 📊 Métricas de Tokens
+
+O sistema exibe o consumo de tokens de cada análise:
+
+| Métrica | Descrição |
+|---------|-----------|
+| **Tokens de Entrada** | Prompt + histórico + análises de mídia |
+| **Tokens de Saída** | Resposta da IA (Ishikawa, 5 Porquês, etc) |
+| **Custo Estimado** | Baseado na tabela de preços do Gemini |
+
+⚠️ **Limite Recomendado:** Manter prompt final abaixo de 30.000 tokens para otimização de custo.
+
+---
+
+## 📝 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+---
+
+## 👨‍💻 Autor
+
+Desenvolvido por **Leonardo Guimarães**
+
+---
+
+*Última atualização: Janeiro 2026*

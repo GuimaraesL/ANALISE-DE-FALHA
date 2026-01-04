@@ -1,4 +1,13 @@
 # core/image_analyzer.py
+"""
+Módulo responsável pela análise de imagens usando IA.
+
+Este módulo contém a classe ImageAnalyzer que utiliza o Google Gemini 2.5 Flash
+para analisar imagens de equipamentos industriais e gerar descrições técnicas
+de sinais de falha visíveis (rachaduras, corrosão, desgaste, etc.).
+
+Formatos suportados: JPEG, PNG, WebP, GIF, HEIC, HEIF, BMP, TIFF, PDF.
+"""
 import google.generativeai as genai
 from pathlib import Path
 from typing import List

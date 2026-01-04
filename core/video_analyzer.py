@@ -1,8 +1,22 @@
 # core/video_analyzer.py
+"""
+Módulo responsável pela análise de vídeos usando IA.
+
+Este módulo contém a classe VideoAnalyzer que utiliza o Google Gemini 2.5 Flash
+para analisar vídeos de equipamentos industriais. O vídeo é enviado via upload
+para a API do Gemini, processado e analisado para identificar padrões de
+movimento, vibrações anormais e outros sinais de falha.
+
+Formatos suportados: MP4, MOV, AVI, WMV, MKV, WebM.
+
+Note:
+    O vídeo é automaticamente deletado da API após a análise para evitar
+    acúmulo de dados na conta.
+"""
 from pathlib import Path
 from typing import List
 import time
-import google.generativeai as genai # Usando a biblioteca padrão do Gemini
+import google.generativeai as genai
 from core.prompts import build_video_prompt
 from ui.texts import TEXTS
 import logging

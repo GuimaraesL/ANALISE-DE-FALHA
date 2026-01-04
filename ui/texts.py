@@ -1,4 +1,20 @@
 # ui/texts.py
+"""
+Módulo de internacionalização (i18n) da interface do usuário.
+
+Este módulo contém o dicionário TEXTS com todas as strings da interface
+traduzidas para Português (pt) e Inglês (en). O idioma é selecionado
+dinamicamente pelo usuário na interface Streamlit.
+
+As chaves do dicionário são consistentes entre os idiomas para permitir
+troca fácil de linguagem em runtime.
+
+Categorias de textos:
+- Labels de UI (botões, títulos, placeholders)
+- Mensagens de status (processando, erro, sucesso)
+- Títulos de seções (Ishikawa, 5 Porquês, etc.)
+- Métricas de tokens (entrada, saída, custo)
+"""
 
 TEXTS = {
     "pt": {

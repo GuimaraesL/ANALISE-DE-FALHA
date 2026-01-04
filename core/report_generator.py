@@ -1,9 +1,21 @@
 # core/report_generator.py
+"""
+Módulo responsável pela geração de relatórios de análise.
+
+Este módulo contém a classe ReportGenerator que formata os resultados
+das análises de causa raiz em arquivos Markdown (.md) estruturados.
+Os relatórios incluem dados do Excel, análises de mídia, histórico
+refinado e a análise completa da IA (Ishikawa, 5 Porquês, Plano de Ação).
+
+Os relatórios são salvos na pasta `relatorios/` com nomenclatura:
+`relatorio_{nome_pasta}_{timestamp}.md`
+"""
 from pathlib import Path
 import os
 from datetime import datetime
 import logging
-from ui.texts import TEXTS # Importa o dicionário de textos
+from ui.texts import TEXTS
+
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")

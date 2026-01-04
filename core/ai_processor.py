@@ -1,4 +1,13 @@
 # core/ai_processor.py
+"""
+Módulo responsável pelo processamento de IA para análise de causa raiz.
+
+Este módulo contém a classe AIProcessor que gerencia:
+- Construção de prompts estruturados para análise RCA
+- Comunicação com a API do Google Gemini (2.5 Pro e Flash)
+- Parsing de respostas em formato estruturado (Ishikawa, 5 Porquês, etc.)
+- Refinamento de histórico via RAG Estágio 2
+"""
 import google.generativeai as genai
 from core.prompts import (intro, input_section, history_section, 
                           task_instructions, format_spec, example_response, 
@@ -12,12 +21,60 @@ import logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+
 def estimate_tokens(text: str) -> int:
-    return len(text) // 4  # Estimativa conservadora de tokens
+    """
+    Estima o número de tokens em um texto.
+    
+    Usa uma heurística simples de ~4 caracteres por token,
+    que é uma aproximação conservadora para modelos Gemini.
+    
+    Args:
+        text: Texto para estimar tokens.
+    
+    Returns:
+        Número estimado de tokens.
+    """
+    return len(text) // 4
+
 
 class AIProcessor:
+    """
+    Processador de IA para análise de causa raiz usando Google Gemini.
+    
+    Esta classe é o coração do sistema de RCA, responsável por:
+    1. Refinar o histórico de falhas (RAG Estágio 2)
+    2. Construir prompts estruturados com engenharia avançada
+    3. Processar respostas da IA e extrair componentes estruturados
+    
+    A classe utiliza dois modelos Gemini:
+    - **Gemini 2.5 Flash**: Para refinamento de histórico (rápido e econômico)
+    - **Gemini 2.5 Pro**: Para análise RCA final (mais robusto)
+    
+    Attributes:
+        model: Modelo Gemini padrão (Pro) para análise principal.
+        refinement_model: Modelo Gemini Flash para refinamento de histórico.
+        analysis_model: Alias para o modelo Pro usado na análise final.
+        cache: Dicionário de cache para evitar chamadas duplicadas.
+        language: Idioma da análise ('pt' ou 'en').
+        last_prompt: Último prompt construído (para debug).
+        last_prompt_token_count: Contagem de tokens do último prompt.
+    
+    Example:
+        >>> processor = AIProcessor(api_key="sua-chave", language="pt")
+        >>> prompt = processor.build_prompt(excel_data, media_analyses, history)
+        >>> result = processor.process_with_gemini(prompt)
+        >>> print(result["ishikawa"])
+    """
+    
     def __init__(self, api_key: str, language: str = "pt"):
-        """Inicializa a API do Gemini."""
+        """
+        Inicializa o processador de IA com configuração do Gemini.
+        
+        Args:
+            api_key: Chave da API do Google Gemini.
+            language: Idioma para geração de conteúdo ('pt' ou 'en').
+        """
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel("gemini-2.5-pro")
         # Usamos o Flash para a tarefa de refinamento por ser mais rápido e barato
@@ -30,7 +87,26 @@ class AIProcessor:
         self.last_prompt_token_count = 0
 
     def refine_history_with_ai(self, current_failure_description: str, broad_history: List[dict]) -> tuple[str, dict]:
-        """Usa a IA para analisar uma lista de falhas e retornar as mais relevantes."""
+        """
+        Refina o histórico de falhas usando IA (RAG Estágio 2).
+        
+        Recebe uma lista ampla de falhas do HistoryManager (Estágio 1)
+        e usa o modelo Gemini Flash para selecionar os 3 casos mais
+        relevantes semanticamente para a falha atual.
+        
+        Args:
+            current_failure_description: Descrição da falha atual para contexto.
+            broad_history: Lista de dicionários com falhas históricas
+                filtradas pelo HistoryManager.
+        
+        Returns:
+            Tupla contendo:
+            - str: Texto formatado com os 3 casos mais relevantes.
+            - dict: Métricas de tokens (input_tokens, output_tokens, total_tokens).
+        
+        Note:
+            Usa Gemini Flash por ser mais econômico para esta tarefa intermediária.
+        """
         if not broad_history:
             return "", {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
@@ -64,7 +140,26 @@ class AIProcessor:
             }
 
 
-    def build_prompt(self, excel_data, media_analyses, refined_history):
+    def build_prompt(self, excel_data: dict, media_analyses: str, refined_history: str) -> str:
+        """
+        Constrói o prompt final para análise RCA.
+        
+        Monta um prompt estruturado combinando todas as seções definidas
+        no módulo prompts.py, incluindo intro, dados de entrada, histórico,
+        instruções, formato esperado e exemplos.
+        
+        Args:
+            excel_data: Dicionário com dados extraídos do Excel
+                (area, equipment, subgroup, description).
+            media_analyses: String com análises concatenadas de imagens/vídeos.
+            refined_history: Histórico já refinado pelo RAG Estágio 2.
+        
+        Returns:
+            String com o prompt completo pronto para envio ao Gemini.
+        
+        Side Effects:
+            Atualiza self.last_prompt e self.last_prompt_token_count.
+        """
         history_context = history_section(refined_history, self.language)
         parts = [
             intro(self.language),
@@ -80,7 +175,14 @@ class AIProcessor:
         self.last_prompt_token_count = estimate_tokens(full_prompt)
         return full_prompt
 
-    def get_last_token_count(self):
+    def get_last_token_count(self) -> int:
+        """
+        Retorna a contagem de tokens do último prompt construído.
+        
+        Returns:
+            Número estimado de tokens do último prompt, ou 0 se nenhum
+            prompt foi construído ainda.
+        """
         return getattr(self, "last_prompt_token_count", 0)
 
     def process_with_gemini(self, prompt: str) -> Dict:

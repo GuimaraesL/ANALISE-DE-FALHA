@@ -1,4 +1,21 @@
 # core/failure_analysis_app.py
+"""
+Módulo orquestrador principal da aplicação de Análise de Falhas.
+
+Este módulo contém a classe FailureAnalysisApp que coordena todo o pipeline
+de análise de causa raiz (RCA), desde a coleta de dados até a geração de
+relatórios. É o ponto central que integra todos os outros módulos do sistema.
+
+O fluxo de processamento segue estas etapas:
+1. Leitura de dados do Excel
+2. Conversão de PDFs em imagens (se houver)
+3. Análise de vídeos com IA
+4. Análise de imagens com IA
+5. RAG Estágio 1 - Busca no histórico
+6. RAG Estágio 2 - Refinamento semântico
+7. Análise RCA final com Gemini Pro
+8. Geração de relatórios em Markdown
+"""
 from asyncio.log import logger
 import os
 from pathlib import Path
@@ -17,16 +34,60 @@ import re
 import time
 from datetime import datetime
 
+
 config = load_config()
 
-# FIX: Listas de extensões para facilitar a manutenção
+# Listas de extensões suportadas para facilitar manutenção
 IMAGE_EXTENSIONS = ["*.jpg", "*.jpeg", "*.png", "*.webp", "*.gif", "*.heic", "*.heif", "*.bmp", "*.tiff", ".pdf"]
 VIDEO_EXTENSIONS = ["*.mp4", "*.mov", "*.avi", "*.wmv", "*.mkv", "*.webm"]
 
 
 class FailureAnalysisApp:
+    """
+    Orquestrador principal do pipeline de Análise de Causa Raiz.
+    
+    Esta classe coordena todo o fluxo de análise, integrando:
+    - ExcelReader: Extração de dados estruturados
+    - ImageAnalyzer: Análise visual via Gemini Flash
+    - VideoAnalyzer: Análise de vídeo via Gemini Flash
+    - HistoryManager: RAG Estágio 1 (filtro)
+    - AIProcessor: RAG Estágio 2 + Análise RCA final (Gemini Pro)
+    - ReportGenerator: Geração de relatórios .md
+    
+    Attributes:
+        root_folder: Caminho da pasta raiz contendo subpastas de análise.
+        enable_images: Flag para habilitar/desabilitar análise de imagens.
+        enable_videos: Flag para habilitar/desabilitar análise de vídeos.
+        history_manager: Instância do gerenciador de histórico (RAG).
+        language: Idioma da interface e relatórios ('pt' ou 'en').
+        pdf_converter: Conversor de PDFs em imagens.
+        excel_reader: Leitor de dados de planilhas Excel.
+        image_analyzer: Analisador de imagens via IA.
+        video_analyzer: Analisador de vídeos via IA.
+        ai_processor: Processador principal de IA (prompts + Gemini).
+        report_generator: Gerador de relatórios Markdown.
+        results: Lista de resultados das análises processadas.
+    
+    Example:
+        >>> app = FailureAnalysisApp(
+        ...     root_folder="C:/analises",
+        ...     gemini_api_key="sua-chave",
+        ...     language="pt"
+        ... )
+        >>> app.run()  # Processa todas as subpastas
+    """
+    
     def __init__(self, root_folder: str, gemini_api_key: str, enable_images: bool = True, enable_videos: bool = True, language: str = "pt"):
-        """Inicializa a aplicação de análise de falhas com todas as suas dependências."""
+        """
+        Inicializa a aplicação de análise de falhas com suas dependências.
+        
+        Args:
+            root_folder: Caminho da pasta raiz contendo subpastas de análise.
+            gemini_api_key: Chave da API do Google Gemini.
+            enable_images: Se True, habilita análise de imagens.
+            enable_videos: Se True, habilita análise de vídeos.
+            language: Idioma da interface ('pt' para português, 'en' para inglês).
+        """
         self.root_folder = Path(root_folder)
         self.enable_images = enable_images
         self.enable_videos = enable_videos

@@ -1,11 +1,54 @@
 # core/history_manager.py
+"""
+Módulo responsável pelo gerenciamento do histórico de falhas (RAG Estágio 1).
+
+Este módulo implementa o primeiro estágio do sistema RAG (Retrieval-Augmented 
+Generation), realizando filtragem estruturada no banco de dados de falhas 
+históricas com base em Área, Equipamento e Subgrupo.
+
+O banco de dados é armazenado em `extracted_data.json` e contém registros
+de falhas passadas extraídos do sistema de análise.
+"""
 import json
 from pathlib import Path
 import logging
-from unidecode import unidecode # Importa a biblioteca para normalização
+from unidecode import unidecode
+
 
 class HistoryManager:
+    """
+    Gerenciador de histórico de falhas para RAG Estágio 1.
+    
+    Esta classe é responsável por:
+    1. Carregar o banco de dados de falhas históricas (JSON)
+    2. Normalizar texto para comparação robusta (remove acentos, lowercase)
+    3. Filtrar falhas por critérios estruturados (Área + Equipamento + Subgrupo)
+    
+    O objetivo é fornecer uma lista ampla de candidatos para o RAG Estágio 2,
+    que fará o refinamento semântico usando IA.
+    
+    Attributes:
+        data_path: Path para o arquivo JSON com histórico de falhas.
+        history_data: Lista de dicionários carregados do arquivo JSON.
+    
+    Example:
+        >>> manager = HistoryManager("extracted_data.json")
+        >>> falhas = manager.find_related_failures({
+        ...     "area": "Laminação",
+        ...     "equipment": "Desbobinador",
+        ...     "subgroup": "Mandril"
+        ... })
+        >>> print(f"Encontradas {len(falhas)} falhas relacionadas")
+    """
+    
     def __init__(self, data_path: str = "extracted_data.json"):
+        """
+        Inicializa o gerenciador de histórico.
+        
+        Args:
+            data_path: Caminho para o arquivo JSON com histórico de falhas.
+                Por padrão, busca 'extracted_data.json' na raiz do projeto.
+        """
         self.data_path = Path(data_path)
         self.history_data = self._load_data()
         logging.info(f"Gerenciador de Histórico inicializado com {len(self.history_data)} registros.")
