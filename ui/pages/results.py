@@ -206,7 +206,7 @@ def _render_refined_history_visual(refined_history: str) -> None:
     """
     Renderiza o histórico correlacionado pela IA com visual premium estruturado.
     
-    Estrutura o conteúdo da IA em seções visuais organizadas, similar ao
+    Estrutura o conteúdo da IA em cards visuais organizados, similar ao
     histórico bruto, mas adaptado para o formato de texto da IA.
     """
     # Header principal
@@ -219,12 +219,12 @@ def _render_refined_history_visual(refined_history: str) -> None:
     """, unsafe_allow_html=True)
     
     # Processa o conteúdo da IA para extrair seções estruturadas
-    sections = _parse_refined_history_sections(refined_history)
+    correlated_failures = _parse_correlated_failures(refined_history)
     
-    if sections:
-        # Renderiza seções estruturadas
-        for section in sections:
-            _render_refined_history_section(section)
+    if correlated_failures:
+        # Renderiza cada falha correlacionada como um card
+        for i, failure in enumerate(correlated_failures):
+            _render_correlated_failure_card(failure, i + 1)
     else:
         # Fallback: renderiza como texto simples se não conseguir parsear
         st.markdown(f"""
@@ -236,171 +236,128 @@ def _render_refined_history_visual(refined_history: str) -> None:
         """, unsafe_allow_html=True)
 
 
-def _parse_refined_history_sections(refined_history: str) -> List[Dict[str, str]]:
+def _parse_correlated_failures(refined_history: str) -> List[Dict[str, str]]:
     """
-    Parseia o histórico correlacionado da IA em seções estruturadas.
+    Parseia as falhas correlacionadas do texto da IA.
     
-    Detecta o formato específico usado pela IA no histórico correlacionado:
-    - **Falha Histórica [número]:** 
-    - **Relevância:**
-    - **Dados Relevantes:**
-    - Também detecta outros padrões comuns
+    Extrai cada falha no formato:
+    - **Falha Histórica [número]:** [descrição]
+    - **Relevância:** [explicação]
+    - **Dados Relevantes:** [dados]
     """
-    sections = []
+    failures = []
     
-    # Primeiro, tenta detectar seções com markdown **texto**
-    if '**' in refined_history:
-        sections = _parse_markdown_sections(refined_history)
-        if sections:
-            return sections
-    
-    # Se não encontrou seções markdown, tenta parsing por linhas
+    # Divide o texto em seções de falhas
     lines = refined_history.split('\n')
-    current_section = {"title": "Análise de Correlação", "content": []}
+    current_failure = {}
+    current_key = None
     
     for line in lines:
         line = line.strip()
         if not line:
             continue
             
-        # Detecta títulos de seção - mais abrangente
-        is_section_title = (
-            # Padrões específicos da IA
-            '**Falha Histórica' in line or
-            '**Relevância:' in line or
-            '**Dados Relevantes:' in line or
-            # Padrões gerais
-            (line.startswith('**') and line.endswith('**')) or
-            (line.startswith('**') and ':' in line) or
-            # Linhas curtas que parecem títulos
-            (len(line) < 60 and not line.endswith('.') and not line.endswith('?')) or
-            # Palavras-chave que indicam início de seção
-            any(keyword in line.lower() for keyword in [
-                'análise de correlação', 'falha histórica', 'relevância', 
-                'dados relevantes', 'conclusão', 'recomendação', 'padrão identificado'
-            ])
-        )
-        
-        if is_section_title:
-            # Salva seção anterior se tiver conteúdo
-            if current_section["content"]:
-                current_section["content"] = '\n'.join(current_section["content"])
-                sections.append(current_section)
+        # Detecta início de nova falha
+        if line.startswith('- **Falha Histórica') or line.startswith('**Falha Histórica'):
+            # Salva falha anterior se existir
+            if current_failure and 'description' in current_failure:
+                failures.append(current_failure)
             
-            # Nova seção - limpa o título
-            clean_title = line.replace('**', '').replace(':', '').strip()
-            current_section = {"title": clean_title, "content": []}
-        else:
-            current_section["content"].append(line)
-    
-    # Adiciona última seção
-    if current_section["content"]:
-        current_section["content"] = '\n'.join(current_section["content"])
-        sections.append(current_section)
-    
-    return sections if sections else []
-
-
-def _parse_markdown_sections(text: str) -> List[Dict[str, str]]:
-    """
-    Parseia seções markdown do texto da IA.
-    """
-    sections = []
-    
-    # Divide por **titulo**
-    parts = re.split(r'\*\*(.*?)\*\*', text)
-    
-    for i in range(1, len(parts), 2):
-        title = parts[i].strip()
-        # Próximo elemento é o conteúdo (ou vazio se for o último)
-        content = parts[i + 1] if i + 1 < len(parts) else ""
-        content = content.strip()
-        
-        if content:  # Só adiciona se tiver conteúdo
-            sections.append({
-                "title": title,
-                "content": content
-            })
-    
-    return sections
-    """
-    Parser fallback para quando o formato específico não é detectado.
-    Divide o texto em seções menores baseadas em quebras de linha duplas
-    e tenta identificar títulos.
-    """
-    sections = []
-    
-    # Divide por quebras de linha duplas
-    paragraphs = [p.strip() for p in refined_history.split('\n\n') if p.strip()]
-    
-    for paragraph in paragraphs:
-        lines = paragraph.split('\n')
-        first_line = lines[0].strip()
-        
-        # Se a primeira linha parece um título (curta, sem pontuação final, etc.)
-        if (len(first_line) < 80 and 
-            not first_line.endswith('.') and 
-            not first_line.endswith('?') and
-            not first_line.startswith('-') and
-            any(keyword in first_line.lower() for keyword in 
-                ['análise', 'correlação', 'falha', 'relevância', 'dados', 'conclusão', 'padrão'])):
+            # Nova falha
+            current_failure = {'description': '', 'relevance': '', 'data': ''}
+            # Extrai a descrição da falha
+            desc_match = re.search(r'\*\*Falha Histórica \d+:\*\*\s*(.+)', line)
+            if desc_match:
+                current_failure['description'] = desc_match.group(1).strip()
+            current_key = 'description'
             
-            sections.append({
-                "title": first_line,
-                "content": '\n'.join(lines[1:]) if len(lines) > 1 else ""
-            })
-        else:
-            # Adiciona como continuação da seção atual ou cria uma nova
-            if sections:
-                sections[-1]["content"] += "\n\n" + paragraph
+        elif line.startswith('- **Relevância:**') or line.startswith('**Relevância:**'):
+            current_key = 'relevance'
+            # Extrai o texto da relevância
+            rel_match = re.search(r'\*\*Relevância:\*\*\s*(.+)', line)
+            if rel_match:
+                current_failure['relevance'] = rel_match.group(1).strip()
+                
+        elif line.startswith('- **Dados Relevantes:**') or line.startswith('**Dados Relevantes:**'):
+            current_key = 'data'
+            # Extrai os dados relevantes
+            data_match = re.search(r'\*\*Dados Relevantes:\*\*\s*(.+)', line)
+            if data_match:
+                current_failure['data'] = data_match.group(1).strip()
+                
+        elif current_key and line.startswith('- '):
+            # Linha adicional para a seção atual
+            content = line[2:].strip()  # Remove o "- "
+            if current_failure.get(current_key):
+                current_failure[current_key] += '\n' + content
             else:
-                sections.append({
-                    "title": "Análise Geral",
-                    "content": paragraph
-                })
+                current_failure[current_key] = content
+                
+        elif current_key and not line.startswith('- ') and not line.startswith('**'):
+            # Continuação do texto atual
+            if current_failure.get(current_key):
+                current_failure[current_key] += ' ' + line
+            else:
+                current_failure[current_key] = line
     
-    return sections
+    # Adiciona última falha
+    if current_failure and 'description' in current_failure:
+        failures.append(current_failure)
+    
+    return failures
 
 
-def _render_refined_history_section(section: Dict[str, str]) -> None:
+def _render_correlated_failure_card(failure: Dict[str, str], index: int) -> None:
     """
-    Renderiza uma seção do histórico correlacionado com visual premium.
+    Renderiza um card para uma falha correlacionada, seguindo o mesmo estilo do histórico bruto.
     """
-    title = section.get("title", "Seção")
-    content = section.get("content", "")
+    description = failure.get('description', 'N/A')
+    relevance = failure.get('relevance', '')
+    data = failure.get('data', '')
     
-    # Determina o ícone baseado no título
-    icon = "📊"  # default
-    if "correlação" in title.lower():
-        icon = "🔗"
-    elif "padrão" in title.lower():
-        icon = "📈"
-    elif "recomendação" in title.lower():
-        icon = "💡"
-    elif "conclusão" in title.lower():
-        icon = "🎯"
-    elif "análise" in title.lower():
-        icon = "🔍"
-    elif "falha" in title.lower():
-        icon = "⚠️"
-    elif "relevância" in title.lower():
-        icon = "🎯"
-    elif "dados" in title.lower():
-        icon = "📋"
+    # Escape dos valores
+    description_esc = html_lib.escape(str(description)) if description else "N/A"
+    relevance_esc = html_lib.escape(str(relevance)) if relevance else ""
+    data_esc = html_lib.escape(str(data)) if data else ""
     
-    # Container da seção com header visual
-    st.markdown(f"""
-    <div style="background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.2); border-left: 4px solid #22C55E; border-radius: 8px; padding: 15px; margin: 10px 0;">
-        <div style="display: flex; align-items: center; margin-bottom: 10px;">
-            <span style="font-size: 1.2em; margin-right: 8px;">{icon}</span>
-            <h5 style="color: #4ADE80; margin: 0; font-weight: 600;">{html_lib.escape(title)}</h5>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # Constrói HTML seguindo exatamente o padrão do histórico bruto
+    html_parts = []
     
-    # Renderiza o conteúdo diretamente como markdown (a IA já formata bem)
-    if content.strip():
-        st.markdown(content)
+    # Container principal (mesmo estilo do histórico bruto)
+    html_parts.append(f'<div style="{STYLE_HISTORY_CARD}">')
+    
+    # Header com número (igual ao histórico bruto)
+    html_parts.append('<div style="display: flex; align-items: center; margin-bottom: 12px;">')
+    html_parts.append(f'<div style="width: 32px; height: 32px; background: linear-gradient(135deg, #22C55E 0%, #4ADE80 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; color: white; margin-right: 12px;">{index}</div>')
+    html_parts.append(f'<div style="color: #4ADE80; font-weight: 600; font-size: 1.1em;">Falha Correlacionada #{index}</div>')
+    html_parts.append('</div>')
+    
+    # Descrição da falha (seguindo o padrão do histórico bruto)
+    html_parts.append('<div style="background: rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 10px; margin-top: 10px;">')
+    html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">📝 Descrição da Falha:</div>')
+    html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{description_esc}</div>')
+    html_parts.append('</div>')
+    
+    # Relevância (usando o estilo verde do histórico bruto para causa raiz)
+    if relevance_esc:
+        html_parts.append('<div style="background: rgba(34, 197, 94, 0.1); border-left: 3px solid #22C55E; border-radius: 6px; padding: 10px; margin-top: 10px;">')
+        html_parts.append('<div style="color: #4ADE80; font-weight: 600; margin-bottom: 5px;">🎯 Relevância Técnica:</div>')
+        html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{relevance_esc}</div>')
+        html_parts.append('</div>')
+    
+    # Dados relevantes (usando o estilo laranja do histórico bruto para ações)
+    if data_esc:
+        html_parts.append('<div style="background: rgba(245, 158, 11, 0.1); border-left: 3px solid #F59E0B; border-radius: 6px; padding: 10px; margin-top: 10px;">')
+        html_parts.append('<div style="color: #FBBF24; font-weight: 600; margin-bottom: 5px;">📋 Dados Relevantes:</div>')
+        html_parts.append(f'<div style="color: #E2E8F0; line-height: 1.5;">{data_esc}</div>')
+        html_parts.append('</div>')
+    
+    # Fecha container principal
+    html_parts.append('</div>')
+    
+    # Renderiza o HTML completo
+    full_html = ''.join(html_parts)
+    st.markdown(full_html, unsafe_allow_html=True)
 
 
 def _extract_section_from_raw_response(raw_response: str, section_title: str) -> str:
