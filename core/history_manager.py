@@ -42,13 +42,17 @@ class HistoryManager:
         >>> print(f"Encontradas {len(falhas)} falhas relacionadas")
     """
     
-    def __init__(self, data_path_or_data: Any = "extracted_data.json"):
+    def __init__(self, data_path_or_data: Any = None):
         """
         Inicializa o gerenciador de histórico.
         
         Args:
             data_path_or_data: Caminho para o arquivo JSON (str/Path) OU lista de dados direta.
         """
+        if data_path_or_data is None:
+            # Caminho padrão na nova pasta 'data'
+            data_path_or_data = Path(__file__).parent.parent / "data" / "extracted_data.json"
+
         if isinstance(data_path_or_data, (str, Path)):
             self.data_path = Path(data_path_or_data)
             self.history_data = self._load_data()

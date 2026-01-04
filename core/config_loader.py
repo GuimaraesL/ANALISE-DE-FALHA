@@ -36,9 +36,14 @@ def load_config(config_path: str = "config.json") -> dict:
         >>> config = load_config()
         >>> api_key = config.get("gemini_api_key")
     """
+    # Tenta primeiro na pasta config/, depois na raiz
     config_file = Path(config_path)
     if not config_file.exists():
-        raise FileNotFoundError(f"Config file '{config_path}' not found.")
+        alt_path = Path("config") / config_path
+        if alt_path.exists():
+            config_file = alt_path
+        else:
+            raise FileNotFoundError(f"Config file '{config_path}' not found (checked root and config/ folder).")
     
     with open(config_file, "r", encoding="utf-8") as f:
         config = json.load(f)
