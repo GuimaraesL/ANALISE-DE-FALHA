@@ -1,149 +1,329 @@
 # test_ui_preview.py
 """
 Página de preview para testar componentes visuais sem gastar créditos da API.
+
+Este arquivo usa os mesmos componentes do app.py para garantir consistência
+visual, mas com dados mockados para teste.
+
 Execute com: streamlit run test_ui_preview.py
 """
 import streamlit as st
 from pathlib import Path
-import html
+import html as html_lib
+import sys
 
-# Carregar CSS
-def load_css():
-    css_path = Path("styles.css")
-    if css_path.exists():
-        with open(css_path, "r", encoding="utf-8") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+# Adicionar diretório raiz ao path para imports
+sys.path.insert(0, str(Path(__file__).parent))
 
-# Função de exibição dos 5 Porquês
-def display_five_whys(five_whys, display_mode="cards"):
-    """
-    Exibe os 5 Porquês com layout moderno em cards verticais.
-    """
-    if not five_whys:
-        st.write("Nenhum dado disponível")
-        return
+# Imports dos componentes modulares
+from ui.styles import load_css
+from ui.components import display_five_whys, display_raw_response
+from ui.pages.results import (
+    _render_excel_data, 
+    _render_history_card,
+    _render_tokens,
+    STYLE_CARD,
+    STYLE_REFINED_HISTORY,
+)
+from ui.utils import clean_empty_values
+from ui.texts import TEXTS
 
-    if display_mode == "cards":
-        # Construir HTML de cada card individualmente
-        for i, why in enumerate(five_whys[:5]):
-            parts = why.split(":", 1)
-            pergunta = html.escape(parts[0].strip())
-            resposta = html.escape(parts[1].strip()) if len(parts) > 1 else ""
-            
-            card_html = f'''
-            <div style="
-                display: flex;
-                align-items: flex-start;
-                gap: 15px;
-                background: linear-gradient(135deg, rgba(30, 58, 138, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%);
-                border: 1px solid rgba(37, 99, 235, 0.3);
-                border-radius: 10px;
-                padding: 15px 18px;
-                margin-bottom: 12px;
-                transition: all 0.3s ease;
-            ">
-                <div style="
-                    flex-shrink: 0;
-                    width: 36px;
-                    height: 36px;
-                    background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 100%);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    font-size: 16px;
-                    color: #FFFFFF;
-                    box-shadow: 0 2px 8px rgba(30, 58, 138, 0.4);
-                ">{i + 1}</div>
-                <div style="flex: 1; line-height: 1.6;">
-                    <div style="font-weight: 600; color: #60A5FA; margin-bottom: 6px; font-size: 1rem;">{pergunta}</div>
-                    <div style="opacity: 0.9; font-size: 0.95rem;">{resposta}</div>
-                </div>
-            </div>
-            '''
-            st.markdown(card_html, unsafe_allow_html=True)
-    
-    elif display_mode == "columns":
-        cols = st.columns(min(len(five_whys), 5))
-        for i, why in enumerate(five_whys[:5]):
-            parts = why.split(":", 1)
-            pergunta = parts[0].strip()
-            resposta = parts[1].strip() if len(parts) > 1 else ""
-            with cols[i]:
-                st.markdown(
-                    f"<div style='background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 5px; padding: 10px; margin: 5px;'><strong>{pergunta}</strong><br>{resposta}</div>",
-                    unsafe_allow_html=True
-                )
+
+# ============================================================================
+# DADOS MOCKADOS
+# ============================================================================
+
+MOCK_FIVE_WHYS = [
+    "Por que o rolamento dianteiro do mandril enrolador travou?: Porque operou com lubrificação deficiente ou inexistente.",
+    "Por que a lubrificação estava deficiente?: Porque o fluxo de óleo para o mancal do rolamento estava abaixo do mínimo necessário para sua correta refrigeração e lubrificação.",
+    "Por que o fluxo de óleo estava abaixo do necessário?: Porque o sistema de entrega de óleo pode ter falhado ou o sistema de monitoramento (fluxostato) não atuou para indicar a condição de baixo fluxo.",
+    "Por que o sistema de monitoramento não atuou ou a falha não foi detectada?: Porque não há uma rotina estabelecida para verificar periodicamente se o fluxo real de óleo e o setpoint de acionamento do fluxostato estão corretos e conforme especificado pelo fabricante.",
+    "Por que esta rotina de verificação crítica não foi estabelecida?: Porque houve uma falha no planejamento da manutenção preventiva, que não identificou este ponto de verificação como essencial para garantir a confiabilidade do sistema de lubrificação do mandril."
+]
+
+MOCK_RAW_RESPONSE = """**Diagrama de Ishikawa**
+- Material: [Rolamento operando com lubrificação deficiente, Óleo lubrificante com possível contaminação ou degradação]
+- Máquina: [Falha no sistema de lubrificação por óleo circulatório, Desgaste ou falha do fluxostato (sensor de fluxo)]
+- Método: [Inexistência de rotina para aferição do fluxo de óleo, Execução parcial do plano de lubrificação]
+- Mão de obra: [Falta de conhecimento no ajuste de fluxo do sistema de lubrificação, Falha na execução do plano de manutenção preventiva]
+- Meio ambiente: [Contaminação do sistema de lubrificação por partículas do processo, Operação em alta temperatura afetando a viscosidade do óleo]
+- Medição: [Setpoint de acionamento do fluxostato não verificado, Monitoramento ineficaz do fluxo de óleo para o rolamento]
+
+**5 Porquês**
+- Por que o rolamento dianteiro do mandril enrolador travou? Porque operou com lubrificação deficiente ou inexistente.
+- Por que a lubrificação estava deficiente? Porque o fluxo de óleo estava abaixo do necessário.
+- Por que o fluxo de óleo estava abaixo do necessário? Porque o sistema de entrega falhou.
+- Por que o sistema falhou? Porque não há rotina de verificação estabelecida.
+- Por que a rotina não foi estabelecida? Porque houve falha no planejamento da manutenção preventiva.
+
+**Plano de Ação**
+- Realizar uma auditoria completa no circuito de lubrificação do mandril enrolador
+- Desenvolver e formalizar um Procedimento Operacional Padrão (POP) para o ajuste de folgas
+- Implementar uma rotina de manutenção preditiva com medição de vibração e temperatura
+- Estabelecer check-list de verificação do sistema de lubrificação
+
+**Conclusão Final**
+A análise da falha recorrente de travamento do rolamento dianteiro do mandril enrolador indica que a causa raiz está relacionada a deficiências sistêmicas no sistema de lubrificação. O travamento repetitivo sugere que as ações corretivas anteriores não foram eficazes."""
+
+# Mock com backticks para testar limpeza
+MOCK_RAW_RESPONSE_WITH_BACKTICKS = MOCK_RAW_RESPONSE + """
+
+```
+
+```
+"""
+
+MOCK_EXCEL_DATA = {
+    "excel_data": {
+        "area": "MEC - Mecânica",
+        "equipment": "CM2 - Mandril Enrolador",
+        "subgroup": "Rolamentos",
+        "description": "Travamento do rolamento dianteiro (LO) do mandril enrolador"
+    }
+}
+
+MOCK_HISTORY = [
+    {
+        "area": "MEC - Mecânica",
+        "equipamento": "CM2 - Mandril Enrolador",
+        "subgrupo": "Rolamentos",
+        "data": "2024-08-15",
+        "descricao_falha": "Travamento do rolamento traseiro do mandril enrolador por falta de lubrificação",
+        "causa_raiz": "Falha no fluxostato que não detectou baixo fluxo de óleo",
+        "acao_corretiva": "Substituição do fluxostato e revisão do plano de lubrificação"
+    },
+    {
+        "area": "MEC - Mecânica",
+        "equipamento": "CM2 - Mandril Desenrolador",
+        "subgrupo": "Rolamentos",
+        "data": "2024-06-22",
+        "descricao_falha": "Superaquecimento do rolamento principal por contaminação do óleo",
+        "causa_raiz": "Entrada de água no sistema de lubrificação",
+        "acao_corretiva": "Troca do óleo e instalação de filtro adicional"
+    },
+    {
+        "area": "MEC - Mecânica",
+        "equipamento": "CM1 - Mandril Enrolador",
+        "subgrupo": "Rolamentos",
+        "data": "2024-03-10",
+        "descricao_falha": "Ruído excessivo no rolamento dianteiro",
+        "causa_raiz": "Desgaste prematuro por falta de manutenção preventiva",
+        "acao_corretiva": ""
+    }
+]
+
+MOCK_REFINED_HISTORY = """### Falhas Correlacionadas Identificadas
+
+Com base na análise do histórico de falhas, identificamos **3 ocorrências** altamente relevantes:
+
+1. **Travamento do rolamento traseiro (Ago/2024)**
+   - Mesmo equipamento, mesmo componente
+   - Causa similar: falha no sistema de lubrificação
+   - Indica problema sistêmico recorrente
+
+2. **Superaquecimento no Desenrolador (Jun/2024)**
+   - Equipamento similar, mesmo subgrupo
+   - Contaminação do óleo como fator contribuinte
+   - Sugere vulnerabilidade comum no sistema
+
+3. **Ruído no CM1 (Mar/2024)**
+   - Equipamento equivalente em outra linha
+   - Falta de manutenção preventiva identificada
+   - Padrão de negligência em rotinas de lubrificação
+
+### Padrão Identificado
+As falhas demonstram um **problema sistêmico na gestão de lubrificação** dos mandris, 
+com falhas recorrentes relacionadas a:
+- Monitoramento ineficaz do fluxo de óleo
+- Falta de rotinas de verificação preventiva
+- Contaminação do lubrificante
+"""
+
+MOCK_TOKEN_RESULT = {
+    "token_details": {
+        "prompt_tokens": 12543,
+        "response_tokens": 3421,
+        "history_input_tokens": 2876,
+        "history_output_tokens": 1234,
+        "media_output_tokens": 567
+    }
+}
 
 
 def main():
-    st.set_page_config(page_title="Preview UI - Análise de Falha", layout="wide")
+    st.set_page_config(
+        page_title="Preview UI - Análise de Falha", 
+        layout="wide",
+        initial_sidebar_state="collapsed"
+    )
     load_css()
     
     st.title("🧪 Preview de Componentes UI")
-    st.markdown("*Teste visual sem gastar créditos da API*")
+    st.markdown("*Teste visual dos componentes refatorados sem gastar créditos da API*")
     st.divider()
     
-    # ========================================
-    # DADOS MOCKADOS (baseados na imagem real)
-    # ========================================
-    mock_five_whys = [
-        "Por que o rolamento dianteiro do mandril enrolador travou?: Porque sofreu uma falha catastrófica por fadiga superficial avançada (spalling) e desgaste severo, resultando em superaquecimento e bloqueio mecânico.",
-        "Por que o rolamento sofreu fadiga e desgaste severo?: Porque operou com uma película de lubrificante deficiente ou inexistente, levando ao contato direto metal-metal entre os elementos rolantes e as pistas.",
-        "Por que a lubrificação estava deficiente?: Porque o óleo lubrificante estava severamente contaminado com água e partículas abrasivas, além de apresentar viscosidade fora da especificação, perdendo sua capacidade de carga e proteção.",
-        "Por que o óleo estava contaminado e degradado?: Porque houve falhas sistêmicas que permitiram o ingresso de contaminantes externos (água, poeira) e a falha na execução dos procedimentos de manutenção e lubrificação.",
-        "Por que as falhas sistêmicas de lubrificação não foram corrigidas a tempo?: Porque há uma falha recorrente na gestão da lubrificação, evidenciada pelo histórico de problemas similares, incluindo execução parcial de planos e falta de procedimentos para ajustes críticos, indicando que as ações corretivas anteriores não foram eficazes ou sustentadas."
-    ]
+    texts = TEXTS["pt"]
     
     # ========================================
-    # SEÇÃO: 5 PORQUÊS
+    # SEÇÃO: DADOS DO EXCEL (NOVO VISUAL)
     # ========================================
-    st.header("📋 5 Porquês - Novo Layout (Cards)")
+    st.header("📊 Dados do Excel - Visual Premium")
     
-    with st.expander("🔍 5 Porquês", expanded=True):
-        display_five_whys(mock_five_whys, "cards")
-    
-    st.divider()
-    
-    # ========================================
-    # COMPARAÇÃO ENTRE LAYOUTS
-    # ========================================
-    st.header("📊 Comparação de Layouts")
-    
-    tab1, tab2 = st.tabs(["📱 Novo Layout (Cards)", "📰 Layout Antigo (Colunas)"])
-    
-    with tab1:
-        st.subheader("Layout Cards (Vertical)")
-        display_five_whys(mock_five_whys, "cards")
-    
-    with tab2:
-        st.subheader("Layout Colunas (Horizontal)")
-        display_five_whys(mock_five_whys, "columns")
+    with st.expander(texts["excel_data"], expanded=True):
+        excel_data = MOCK_EXCEL_DATA.get("excel_data", {})
+        
+        fields = [
+            (texts['area'], excel_data.get('area', 'N/A'), "🏭"),
+            (texts['equipment'], excel_data.get('equipment', 'N/A'), "⚙️"),
+            (texts['subgroup'], excel_data.get('subgroup', 'N/A'), "📦"),
+            (texts['description'], excel_data.get('description', 'N/A'), "📝"),
+        ]
+        
+        for label, value, emoji in fields:
+            st.markdown(f"""
+            <div style="{STYLE_CARD}">
+                <span style="color: #60A5FA; font-weight: 600; margin-right: 8px;">
+                    {emoji} {html_lib.escape(label)}:
+                </span>
+                <span style="color: #E2E8F0;">
+                    {html_lib.escape(str(value))}
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
     
     st.divider()
     
     # ========================================
-    # OUTROS COMPONENTES DE TESTE
+    # SEÇÃO: 5 PORQUÊS (USANDO COMPONENTE)
     # ========================================
-    st.header("🎨 Outros Componentes")
+    st.header("🔍 5 Porquês - Componente Modular")
     
-    with st.expander("📊 Dados do Excel (Mock)"):
-        st.write("- **Área**: Laminação")
-        st.write("- **Equipamento**: Mandril Enrolador")
-        st.write("- **Subgrupo**: Rolamentos")
-        st.write("- **Descrição**: Travamento do rolamento dianteiro")
-    
-    with st.expander("📏 Tokens (Mock)"):
-        st.write("**Tokens de entrada:** 15.234")
-        st.write("**Tokens de saída:** 8.456")
-        st.markdown("**Custo estimado:** US$ 0.002728")
-        st.success("✅ Tokens dentro do limite!")
+    with st.expander(texts["five_whys_expander"], expanded=True):
+        display_five_whys(MOCK_FIVE_WHYS, "cards", texts, "pt")
     
     st.divider()
     
     # ========================================
-    # ANÁLISE DE VÍDEO/IMAGEM DESABILITADOS
+    # SEÇÃO: RESPOSTA BRUTA (COM LIMPEZA DE BACKTICKS)
+    # ========================================
+    st.header("🤖 Resposta Bruta - Com Limpeza de Backticks")
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Sem backticks")
+        with st.expander("Resposta Limpa", expanded=True):
+            display_raw_response(MOCK_RAW_RESPONSE)
+    
+    with col2:
+        st.subheader("Com backticks (limpeza automática)")
+        with st.expander("Resposta com ``` no final", expanded=True):
+            display_raw_response(MOCK_RAW_RESPONSE_WITH_BACKTICKS)
+    
+    st.divider()
+    
+    # ========================================
+    # SEÇÃO: HISTÓRICO BRUTO (NOVO VISUAL COM TABS)
+    # ========================================
+    st.header("📚 Histórico Bruto - Visual Amigável + JSON")
+    
+    history_count = len(MOCK_HISTORY)
+    expander_title = texts["broad_history_expander"].format(count=history_count)
+    
+    with st.expander(expander_title, expanded=True):
+        # Tabs: Visual Amigável | JSON Técnico
+        tab_visual, tab_json = st.tabs(["📋 Visualização", "🔧 JSON Técnico"])
+        
+        with tab_visual:
+            for i, failure in enumerate(MOCK_HISTORY):
+                _render_history_card(failure, i + 1, texts)
+        
+        with tab_json:
+            for i, failure in enumerate(MOCK_HISTORY):
+                analysis_title = texts["historical_analysis_title"].format(index=i+1)
+                st.markdown(analysis_title)
+                
+                cleaned_failure_data = clean_empty_values(failure)
+                st.json(cleaned_failure_data, expanded=True)
+                st.divider()
+    
+    st.divider()
+    
+    # ========================================
+    # SEÇÃO: HISTÓRICO CORRELACIONADO PELA IA
+    # ========================================
+    st.header("🔍 Histórico Correlacionado pela IA")
+    
+    with st.expander(texts["history_expander"], expanded=True):
+        st.markdown(f"""
+        <div style="{STYLE_REFINED_HISTORY}">
+            <h4 style="color: #4ADE80; margin: 0 0 15px 0;">
+                🔍 Análise de Correlação pela IA
+            </h4>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown(MOCK_REFINED_HISTORY)
+    
+    st.divider()
+    
+    # ========================================
+    # SEÇÃO: TOKENS (NOVO VISUAL)
+    # ========================================
+    st.header("📏 Tokens - Visual Premium")
+    
+    with st.expander("📏 Tokens", expanded=True):
+        token_details = MOCK_TOKEN_RESULT.get("token_details", {})
+        
+        # Cálculo de totais
+        input_tokens = (
+            token_details.get("prompt_tokens", 0) + 
+            token_details.get("history_input_tokens", 0)
+        )
+        output_tokens = (
+            token_details.get("response_tokens", 0) +
+            token_details.get("history_output_tokens", 0) +
+            token_details.get("media_output_tokens", 0)
+        )
+        total_tokens = input_tokens + output_tokens
+
+        # Custo estimado
+        input_cost = input_tokens / 1000 * 0.0115
+        output_cost = output_tokens / 1000 * 0.0115
+        total_cost = input_cost + output_cost
+
+        # Layout em colunas
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.markdown(f"""
+            <div style="{STYLE_CARD}; text-align: center;">
+                <div style="color: #60A5FA; font-size: 0.9em;">📥 Input</div>
+                <div style="color: #E2E8F0; font-size: 1.3em; font-weight: bold;">{input_tokens:,}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col2:
+            st.markdown(f"""
+            <div style="{STYLE_CARD}; text-align: center;">
+                <div style="color: #4ADE80; font-size: 0.9em;">📤 Output</div>
+                <div style="color: #E2E8F0; font-size: 1.3em; font-weight: bold;">{output_tokens:,}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with col3:
+            st.markdown(f"""
+            <div style="{STYLE_CARD}; text-align: center;">
+                <div style="color: #FBBF24; font-size: 0.9em;">💰 Custo</div>
+                <div style="color: #E2E8F0; font-size: 1.3em; font-weight: bold;">US$ {total_cost:.4f}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.success(texts["token_ok"])
+    
+    st.divider()
+    
+    # ========================================
+    # ANÁLISE DE VÍDEO/IMAGEM - ESTADOS
     # ========================================
     st.header("🎥🖼️ Análise de Mídia - Estados")
     
@@ -152,213 +332,37 @@ def main():
     with col1:
         st.subheader("Quando Desabilitado")
         with st.expander("🎥 Análise de Vídeo", expanded=True):
-            st.info("🎥 Análise de vídeo desabilitada")
+            st.info(texts["video_disabled"])
         
         with st.expander("🖼️ Análise de Imagens", expanded=True):
-            st.info("🖼️ Análise de imagem desabilitada")
+            st.info(texts["image_disabled"])
     
     with col2:
-        st.subheader("Quando Habilitado (sem conteúdo)")
+        st.subheader("Quando Habilitado (com conteúdo)")
         with st.expander("🎥 Análise de Vídeo", expanded=True):
-            st.info("Nenhuma análise de vídeo encontrada")
+            st.markdown(f"""
+            <div style="{STYLE_CARD}">
+            <strong>Análise do Vídeo:</strong><br><br>
+            O vídeo mostra o processo de desmontagem do rolamento danificado. Observa-se:<br>
+            • <strong>Desgaste severo nas pistas</strong> - Marcas de spalling visíveis<br>
+            • <strong>Contaminação do lubrificante</strong> - Coloração escurecida<br>
+            • <strong>Partículas metálicas</strong> - Debris visível no lubrificante residual
+            </div>
+            """, unsafe_allow_html=True)
         
         with st.expander("🖼️ Análise de Imagens", expanded=True):
-            st.info("Nenhuma análise de imagem encontrada")
-    
-    st.divider()
-    
-    # ========================================
-    # ANÁLISE DE MÍDIA COM CONTEÚDO
-    # ========================================
-    st.subheader("Quando Habilitado (com conteúdo)")
-    
-    with st.expander("🎥 Análise de Vídeo", expanded=True):
-        st.markdown("""
-**Análise do Vídeo:**
-
-O vídeo mostra o processo de desmontagem do rolamento danificado. Observa-se:
-
-1. **Desgaste severo nas pistas** - Marcas de spalling visíveis na pista interna
-2. **Contaminação do lubrificante** - Coloração escurecida indicando degradação térmica
-3. **Partículas metálicas** - Debris visível no lubrificante residual
-4. **Superaquecimento** - Descoloração azulada nas superfícies de contato
-
-A falha é consistente com operação prolongada sob lubrificação inadequada.
-        """)
-    
-    with st.expander("🖼️ Análise de Imagens", expanded=True):
-        st.markdown("""
-**Análise das Imagens:**
-
-As imagens documentam o estado do rolamento após a falha:
-
-- **Imagem 1**: Vista geral do rolamento travado mostrando acúmulo de debris
-- **Imagem 2**: Detalhe da pista interna com marcas de spalling
-- **Imagem 3**: Elementos rolantes com desgaste irregular
-- **Imagem 4**: Amostra do lubrificante degradado
-
-O padrão de desgaste indica falha por fadiga superficial agravada por contaminação.
-        """)
-    
-    st.divider()
-    
-    # ========================================
-    # RESPOSTA BRUTA
-    # ========================================
-    st.header("🤖 Resposta Bruta")
-    
-    mock_raw_response = """**Diagrama de Ishikawa**
-- Material: [Rolamento com vida útil esgotada ou defeito de fabricação, Especificação incorreta do rolamento para a aplicação]
-- Máquina: [Baixa performance ou falha na bomba do sistema de lubrificação, Obstrução nas linhas de óleo]
-- Método: [Plano de lubrificação não especifica todos os pontos ou a frequência adequada, Falta de procedimento para ajuste de folgas]
-- Mão de obra: [Falha na execução da rotina de lubrificação, Falta de conhecimento específico sobre o equipamento]
-- Meio ambiente: [Contaminação do sistema de lubrificação por particulados, Operação em condições severas de temperatura]
-- Medição: [Sensores de fluxo de óleo (fluxostatos) inoperantes ou descalibrados, Falta de monitoramento de vibração]
-
-**5 Porquês**
-- Por que o rolamento dianteiro do mandril enrolador travou? Porque operou com lubrificação deficiente.
-- Por que o rolamento operou com lubrificação deficiente? Porque o fluxo de óleo estava abaixo do necessário.
-- Por que o fluxo de óleo estava abaixo do necessário? Porque há uma falha sistêmica no sistema de lubrificação.
-- Por que o sistema de entrega falha ou é ajustado incorretamente? Porque os planos não são adequados.
-- Por que os planos e procedimentos são ineficazes ou inexistentes? Porque falta gestão adequada.
-
-**Plano de Ação**
-- Realizar uma auditoria completa no circuito de lubrificação do mandril enrolador
-- Desenvolver e formalizar um Procedimento Operacional Padrão (POP) para o ajuste de folgas
-- Implementar uma rotina de manutenção preditiva com medição de vibração e/ou temperatura
-
-**Conclusão Final**
-A análise da falha recorrente de travamento do rolamento dianteiro do mandril enrolador indica que a causa raiz está relacionada a deficiências sistêmicas no sistema de lubrificação."""
-
-    with st.expander("🤖 Resposta Bruta", expanded=True):
-        import re
-        
-        # Split the response into sections using regex (igual ao app.py)
-        sections = re.split(r'\*\*([^*]+)\*\*', mock_raw_response)
-        
-        if len(sections) > 1:
-            # Formato com **Título** detectado
-            i = 1
-            while i < len(sections):
-                section_title = sections[i].strip()
-                section_content = sections[i + 1] if i + 1 < len(sections) else ""
-                
-                if section_title and section_content.strip():
-                    if "Diagrama de Ishikawa" in section_title:
-                        st.markdown(f"""
-                        <div style="
-                            background: linear-gradient(135deg, rgba(37, 99, 235, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%);
-                            border-left: 4px solid #3B82F6;
-                            padding: 15px 20px;
-                            margin: 15px 0;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
-                        ">
-                        <h3 style="color: #60A5FA; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">📊 {html.escape(section_title)}</h3>
-                        """, unsafe_allow_html=True)
-                    elif "5 Porquês" in section_title:
-                        st.markdown(f"""
-                        <div style="
-                            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(74, 222, 128, 0.1) 100%);
-                            border-left: 4px solid #22C55E;
-                            padding: 15px 20px;
-                            margin: 15px 0;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
-                        ">
-                        <h3 style="color: #4ADE80; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🔍 {html.escape(section_title)}</h3>
-                        """, unsafe_allow_html=True)
-                    elif "Plano de Ação" in section_title:
-                        st.markdown(f"""
-                        <div style="
-                            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(251, 191, 36, 0.1) 100%);
-                            border-left: 4px solid #F59E0B;
-                            padding: 15px 20px;
-                            margin: 15px 0;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.15);
-                        ">
-                        <h3 style="color: #FBBF24; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🎯 {html.escape(section_title)}</h3>
-                        """, unsafe_allow_html=True)
-                    elif "Conclusão Final" in section_title:
-                        st.markdown(f"""
-                        <div style="
-                            background: linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(196, 181, 253, 0.1) 100%);
-                            border-left: 4px solid #A855F7;
-                            padding: 15px 20px;
-                            margin: 15px 0;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
-                        ">
-                        <h3 style="color: #C4B5FD; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">🏁 {html.escape(section_title)}</h3>
-                        """, unsafe_allow_html=True)
-                    else:
-                        # Outras seções
-                        st.markdown(f"""
-                        <div style="
-                            background: linear-gradient(135deg, rgba(107, 114, 128, 0.2) 0%, rgba(156, 163, 175, 0.1) 100%);
-                            border-left: 4px solid #6B7280;
-                            padding: 15px 20px;
-                            margin: 15px 0;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 12px rgba(107, 114, 128, 0.15);
-                        ">
-                        <h3 style="color: #9CA3AF; margin: 0 0 10px 0; font-size: 1.3em; font-weight: 600;">📝 {html.escape(section_title)}</h3>
-                        """, unsafe_allow_html=True)
-                    
-                    # Renderizar conteúdo da seção
-                    lines = section_content.strip().split('\n')
-                    for line in lines:
-                        if line.strip():
-                            if line.startswith('- '):
-                                st.markdown(f"""
-                                <div style="
-                                    background: rgba(255, 255, 255, 0.05);
-                                    border-radius: 6px;
-                                    padding: 8px 12px;
-                                    margin: 5px 0;
-                                    border-left: 3px solid rgba(255, 255, 255, 0.3);
-                                    font-size: 0.95em;
-                                ">
-                                {html.escape(line.strip())}
-                                </div>
-                                """, unsafe_allow_html=True)
-                            else:
-                                st.markdown(f"""
-                                <p style="
-                                    margin: 8px 0;
-                                    padding: 5px 10px;
-                                    background: rgba(255, 255, 255, 0.03);
-                                    border-radius: 4px;
-                                    font-size: 0.95em;
-                                    line-height: 1.6;
-                                ">
-                                {html.escape(line.strip())}
-                                </p>
-                                """, unsafe_allow_html=True)
-                    
-                    # Fechar a div da seção
-                    st.markdown("</div>", unsafe_allow_html=True)
-                
-                i += 2
-        else:
-            # Sem padrão detectado, mostra como markdown simples com estilo básico
             st.markdown(f"""
-            <div style="
-                background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 58, 138, 0.9) 100%);
-                border: 2px solid rgba(37, 99, 235, 0.5);
-                border-radius: 15px;
-                padding: 25px;
-                margin: 10px 0;
-                box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-                color: #E2E8F0;
-                line-height: 1.7;
-            ">
-            {mock_raw_response}
+            <div style="{STYLE_CARD}">
+            <strong>Análise das Imagens:</strong><br><br>
+            As imagens documentam o estado do rolamento após a falha:<br>
+            • <strong>Imagem 1:</strong> Vista geral do rolamento travado<br>
+            • <strong>Imagem 2:</strong> Detalhe da pista interna com spalling<br>
+            • <strong>Imagem 3:</strong> Elementos rolantes com desgaste
             </div>
             """, unsafe_allow_html=True)
     
-    st.success("✅ Preview carregado com sucesso!")
+    st.divider()
+    st.success("✅ Preview carregado com sucesso! Todos os componentes refatorados estão funcionando.")
 
 
 if __name__ == "__main__":
