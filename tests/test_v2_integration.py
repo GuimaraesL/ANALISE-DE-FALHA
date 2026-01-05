@@ -41,7 +41,8 @@ def test_tools():
     # Apenas validação de assinatura e instanciação
     # (Não faremos chamadas reais de API para evitar custos extras no teste)
     try:
-        tools = FailureAnalysisTools(api_key="mock_key", history_data=[])
+        db = DatabaseManager(Path("test_failure_analysis.db"))
+        tools = FailureAnalysisTools(api_key="mock_key", db=db)
         print("FailureAnalysisTools instanciado com sucesso.")
     except Exception as e:
         print(f"Erro ao instanciar tools: {e}")
