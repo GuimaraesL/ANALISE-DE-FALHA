@@ -7,6 +7,10 @@ streamlit
 # AI/ML
 google-generativeai
 
+# Engine V2 (Agentic)
+agno
+google-genai
+
 # PDF processing
 pdf2image
 
