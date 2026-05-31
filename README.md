@@ -1,97 +1,94 @@
-# 🔍 Sistema Inteligente de Análise de Causa Raiz (RCA) com IA
+# 🔍 Sistema Inteligente de Análise de Causa Raiz (RCA) com IA — V2 Agêntico
 
 ![Python Version](https://img.shields.io/badge/Python-3.9+-blue.svg)
 ![Status](https://img.shields.io/badge/Status-Em%20Desenvolvimento-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Gemini](https://img.shields.io/badge/Google-Gemini%202.5-purple.svg)
+![Framework](https://img.shields.io/badge/Framework-Agno-orange.svg)
+![Database](https://img.shields.io/badge/Database-SQLite-blue.svg)
 
-> **Automatiza a análise de causa raiz de falhas industriais usando IA multimodal com RAG de 2 estágios para correlação histórica.**
+> **Orquestração agêntica autônoma para análise de causa raiz de falhas industriais usando o framework Agno, IA multimodal (Gemini 2.5) e busca dinâmica no banco de dados SQLite.**
 
 ---
 
 ## 📖 Sobre o Projeto
 
-Este projeto é uma aplicação web construída com **Streamlit** e **Python** que automatiza o processo de **Análise de Causa Raiz (RCA)** de falhas em equipamentos industriais. A aplicação utiliza os modelos de linguagem da **Google (Gemini 2.5)** para analisar dados multimodais (Excel, imagens, vídeos) e gerar relatórios técnicos estruturados seguindo metodologias consagradas como **Diagrama de Ishikawa** e **5 Porquês**.
+Este projeto é uma aplicação de nível corporativo voltada para a **Análise de Causa Raiz (RCA)** de falhas em equipamentos industriais. Em sua **versão V2**, o sistema foi redefinido para adotar uma arquitetura baseada em **Agentes de IA Autônomos (framework Agno)** e persistência em **SQLite (Padrão Repository)**, substituindo análises lineares tradicionais por tomadas de decisões inteligentes.
+
+O agente especialista correlaciona dados multimodais (tabelas, imagens e vídeos) com mais de 2.300 registros históricos e calibrações de especialistas anteriores (**Gold Standards**), produzindo laudos altamente precisos e estruturados em metodologias como **Diagrama de Ishikawa**, **5 Porquês** e **Plano de Ação (5W2H)**.
 
 ---
 
-## ✨ Funcionalidades Principais
+## ✨ Funcionalidades Principais (V2 Agêntico)
 
 | Funcionalidade | Descrição |
 |----------------|-----------|
-| 📊 **Análise Multimodal** | Processa arquivos Excel, imagens e vídeos simultaneamente |
-| 🔍 **RAG de 2 Estágios** | Busca e refina histórico de falhas para contexto enriquecido |
-| 🐟 **Diagrama de Ishikawa** | Geração automática de diagrama de causa e efeito |
-| ❓ **5 Porquês** | Análise estruturada com cards interativos |
-| 🎯 **Plano de Ação** | Recomendações práticas baseadas na análise |
-| 🖼️ **Contexto de Mídias** | Permite guiar a IA com observações por foto/vídeo |
-| 🌐 **Bilíngue** | Suporte completo a Português e Inglês |
-| 📥 **Export Markdown** | Download de relatórios no formato .md |
+| 🤖 **Agente Autônomo Agno** | Orquestrador inteligente baseado em `Gemini-2.5-Pro` que decide quando consultar o histórico e quando inspecionar as mídias. |
+| 🗄️ **Persistência SQLite** | Banco de dados relacional unificado (`analyses`, `expert_feedback`, `historical_failures`) com criação automática (*Fail Fast*). |
+| 👁️ **Ferramentas Multimodais** | Detecção visual de anomalias em fotos e análise temporal de vibrações/movimentos em vídeos com `Gemini-2.5-Flash`. |
+| 🔍 **Busca Dinâmica "Human-Like"** | Estratégia adaptativa de busca histórica em múltiplos níveis com fallback automático caso filtros estritos falhem. |
+| 🏆 **Memória de Calibração (Gold Standards)** | Injeção dinámica de exemplos "Ouro" validados por especialistas no prompt do agente (*Few-Shot Learning*). |
+| 🐟 **Diagrama de Ishikawa** | Geração automática do diagrama de causa e efeito estruturado nas categorias clássicas de manufatura. |
+| ❓ **Análise Interativa de 5 Porquês** | Decomposição lógica em profundidade até a causa raiz. |
+| 📋 **Plano de Ação Inteligente** | Recomendações e medidas preventivas baseadas no diagnóstico e nos precedentes. |
+| 🌐 **Suporte Bilíngue** | Interface e relatórios traduzidos dinamicamente (Português e Inglês). |
 
 ---
 
 ## 🏗️ Arquitetura do Sistema
 
-### Fluxo de Dados
+### Fluxo de Dados Agêntico
+
+O pipeline linear da V1 foi substituído por um fluxo dinâmico em que o **Agente Líder (Agno Framework)** tem acesso a ferramentas de visão e busca persistente para resolver a causa de forma iterativa:
 
 ```
 ┌──────────────────────────────────────────────────────────────────────────┐
-│                           PIPELINE DE ANÁLISE                            │
+┌──────────────────────────────────────────────────────────────────────────┐
+│                           ARQUITETURA V2 AGÊNTICA                        │
 ├──────────────────────────────────────────────────────────────────────────┤
 │                                                                          │
-│  📁 ENTRADA              🔧 PROCESSAMENTO              📤 SAÍDA         │
-│  ════════                ═══════════════               ═══════          │
+│                       ┌────────────────────────┐                         │
+│                       │    Interface Streamlit │                         │
+│                       └───────────┬────────────┘                         │
+│                                   │                                      │
+│                                   ▼                                      │
+│                     ┌───────────────────────────┐                        │
+│                     │   LeadAnalysisAgent (V2)  │                        │
+│                     │  (Gemini-2.5-Pro + Agno)  │                        │
+│                     └──────┬──────────────┬─────┘                        │
+│                            │              │                              │
+│         [Usa Ferramentas]  │              │  [Injeta Gold Standards]     │
+│                            ▼              ▼                              │
+│      ┌──────────────────────────┐    ┌──────────────────────────┐        │
+│      │   FailureAnalysisTools   │    │      DatabaseManager     │        │
+│      └──────┬────────────┬──────┘    │ (few_failure_analysis.db)│        │
+│             │            │           └────────────┬─────────────┘        │
+│             ▼            ▼                        │                      │
+│      ┌───────────┐  ┌───────────┐                 │                      │
+│      │  Visão    │  │ Busca DB  │                 │                      │
+│      │  Mídias   │  │ Histórica │                 │                      │
+│      └─────┬─────┘  └─────┬─────┘                 │                      │
+│            │              │                       │                      │
+│            ▼              └───────────────┐       │                      │
+│      ┌───────────┐                        ▼       ▼                      │
+│      │ Gemini    │                  ┌──────────────────────────┐         │
+│      │ 2.5 Flash │                  │  SQLite:                 │         │
+│      └───────────┘                  │  - analyses              │         │
+│                                     │  - expert_feedback       │         │
+│                                     │  - historical_failures   │         │
+│                                     └──────────────────────────┘         │
 │                                                                          │
-│  ┌─────────┐            ┌─────────────────┐                             │
-│  │ Pasta   │───────────▶│ ExcelReader     │──▶ Dados estruturados       │
-│  │ Excel   │            └─────────────────┘                             │
-│  │ Imagens │            ┌─────────────────┐                             │
-│  │ Vídeos  │───────────▶│ ImageAnalyzer   │──▶ Laudo técnico visual     │
-│  └─────────┘            │ (Gemini Flash)  │                             │
-│       │                 └─────────────────┘                             │
-│       │                 ┌─────────────────┐                             │
-│       └────────────────▶│ VideoAnalyzer   │──▶ Análise de movimento     │
-│                         │ (Gemini Flash)  │                             │
-│                         └─────────────────┘                             │
-│                                  │                                       │
-│  ┌─────────────┐                 ▼                                       │
-│  │ extracted_  │         ┌─────────────────┐                            │
-│  │ data.json   │────────▶│ HistoryManager  │                            │
-│  │ (Histórico) │         │ RAG Estágio 1   │                            │
-│  └─────────────┘         │ (Filtro)        │                            │
-│                          └────────┬────────┘                            │
-│                                   ▼                                      │
-│                          ┌─────────────────┐                            │
-│                          │ AIProcessor     │                            │
-│                          │ RAG Estágio 2   │──▶ Refinamento semântico   │
-│                          │ (Gemini Pro)    │                            │
-│                          └────────┬────────┘                            │
-│                                   ▼                                      │
-│                          ┌─────────────────┐      ┌──────────────┐      │
-│                          │ Análise Final   │─────▶│ Ishikawa     │      │
-│                          │ (Gemini 2.5 Pro)│      │ 5 Porquês    │      │
-│                          └─────────────────┘      │ Plano Ação   │      │
-│                                   │               │ Conclusão    │      │
-│                                   ▼               └──────────────┘      │
-│                          ┌─────────────────┐                            │
-│                          │ ReportGenerator │──▶ 📄 Relatório .md        │
-│                          └─────────────────┘                            │
+│  SAÍDA ESTRUTURADA:                                                      │
+│  📄 Ishikawa 5M/6M  ▶  ❓ 5 Porquês  ▶  🎯 Plano de Ação  ▶  📝 Laudo .md │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Sistema RAG de 2 Estágios
+### Busca Histórica Dinâmica (Human-Like Fallback)
 
-O diferencial deste sistema é o **RAG (Retrieval-Augmented Generation) de 2 estágios**:
-
-1. **Estágio 1 - Filtro Estruturado** (`HistoryManager`)
-   - Busca no banco `extracted_data.json` por falhas com mesma Área + Equipamento + Subgrupo
-   - Normalização de texto (remove acentos, lowercase)
-   - Retorna lista ampla de candidatos
-
-2. **Estágio 2 - Refinamento Semântico** (`AIProcessor.refine_history_with_ai`)
-   - IA analisa contexto da falha atual vs candidatos
-   - Seleciona os 3 casos mais relevantes semanticamente
-   - Gera resumo contextualizado para o prompt final
+O sistema de busca histórica foi otimizado para evitar buscas vazias e maximizar o contexto enriquecido:
+1. **Primeira Tentativa:** Busca restrita e estruturada filtrando por `Área + Equipamento + Subgrupo` exatos no banco SQLite.
+2. **Segundo Nível (Fallback 1):** Se nenhum registro for encontrado, alarga a busca para listar qualquer falha no `Equipamento`.
+3. **Terceiro Nível (Fallback 2):** Caso ainda esteja vazio, realiza uma pesquisa textual flexível usando termos técnicos (`description_keyword`) no campo de descrição da falha.
 
 ---
 
@@ -99,210 +96,134 @@ O diferencial deste sistema é o **RAG (Retrieval-Augmented Generation) de 2 est
 
 ```
 ANALISE-DE-FALHA/
-├── 📄 app.py                    # Ponto de entrada Streamlit (UI principal)
-├── 📄 test_ui_preview.py        # Preview de componentes UI sem gastar créditos
-├── 📄 config.json               # Configurações (API keys) - NÃO versionar!
-├── 📄 extracted_data.json       # Banco de dados histórico (~12MB)
-├── 📄 styles.css                # Estilos CSS premium para UI
-├── 📄 requirements.txt          # Dependências Python
+├── 📄 app.py                    # Streamlit UI (Engine V1 / V2 comutável)
+├── 📄 test_ui_preview.py        # Preview da interface sem custos de API
+├── 📄 config.json               # Credenciais e API Keys (Ignorado no git)
+├── 📄 styles.css                # Customização visual e design system premium
+├── 📄 requirements.txt          # Dependências do projeto (incluindo agno)
 │
-├── 📁 core/                     # Lógica de negócio
+├── 📁 core/                     # Núcleo lógico do sistema
 │   ├── __init__.py
-│   ├── ai_processor.py          # Montagem de prompt + Gemini 2.5 Pro
-│   ├── config_loader.py         # Carregador de config.json
-│   ├── excel_reader.py          # Extração de dados Excel (aba A3)
-│   ├── failure_analysis_app.py  # Orquestrador principal do pipeline
-│   ├── history_manager.py       # RAG Estágio 1 (filtro por área/equip)
-│   ├── image_analyzer.py        # Análise de imagens (Gemini Flash)
-│   ├── pdf_as_image_converter.py# Conversão PDF → Imagem
-│   ├── prompts.py               # Engenharia de prompts (18KB)
-│   ├── report_generator.py      # Gerador de relatórios .md
-│   └── video_analyzer.py        # Análise de vídeos (Gemini Flash)
+│   ├── ai_processor.py          # Processamento linear V1 (Gemini 2.5 Pro)
+│   ├── config_loader.py         # Tratamento portátil e seguro de credenciais
+│   ├── database.py              # Gerenciador de Banco de Dados SQLite (Repository)
+│   ├── excel_reader.py          # Extrator e parser de dados da aba A3
+│   ├── failure_analysis_app.py  # Orquestrador unificado das análises
+│   ├── history_manager.py       # Gerenciamento de histórico V1
+│   ├── image_analyzer.py        # Processamento e laudo de fotos (Gemini Flash)
+│   ├── pdf_as_image_converter.py# Auxiliar para conversão de PDFs
+│   ├── prompts.py               # Engenharia de prompts estruturada
+│   ├── report_generator.py      # Gerador automatizado de relatórios em Markdown
+│   ├── video_analyzer.py        # Processamento de vídeos industriais (Gemini Flash)
+│   │
+│   └── 📁 agents/               # Framework Agêntico Agno
+│       ├── __init__.py
+│       ├── analyst_agent.py     # Agente Líder (LeadAnalysisAgent) e Personas
+│       └── tools.py             # Encapsulamento de ferramentas para o agente
 │
-├── 📁 ui/                       # Interface do usuário
+├── 📁 data/                     # Persistência de Dados centralizada
+│   ├── failure_analysis.db      # Banco de dados SQLite de Produção
+│   ├── analysis_results.db      # Banco auxiliar de históricos de execuções
+│   └── extracted_data.json      # Dados históricos brutos legados (para importação)
+│
+├── 📁 ui/                       # Módulos de Interface
 │   ├── __init__.py
-│   └── texts.py                 # Internacionalização (PT/EN)
+│   └── texts.py                 # Dicionários de internacionalização (PT/EN)
 │
-├── 📁 relatorios/               # Relatórios gerados (saída)
-├── 📁 logs/                     # Logs de execução
-└── 📁 Site/                     # Assets para página web (opcional)
+├── 📁 tests/                    # Suíte de Testes Automatizados
+│   ├── test_imports.py          # Validação de importações e integridade de módulos
+│   └── test_v2_integration.py   # Testes unitários do Database e do Agente
+│
+├── 📁 relatorios/               # Relatórios gerados em Markdown (.md)
+├── 📁 logs/                     # Registro de eventos estruturados em arquivos .log
+└── 📁 Site/                     # Landing page ou assets complementares
 ```
 
 ---
 
-## 🛠️ Tecnologias Utilizadas
+## 🛠️ Tecnologias e Dependências
 
-| Categoria | Tecnologia | Versão |
-|-----------|------------|--------|
-| **Linguagem** | Python | 3.9+ |
-| **Framework Web** | Streamlit | 1.x |
-| **IA Principal** | Google Gemini 2.5 Pro | Latest |
-| **IA Auxiliar** | Google Gemini 2.5 Flash | Latest |
-| **Leitura Excel** | Openpyxl | 3.x |
-| **Normalização** | Unidecode | 1.x |
-| **Gráficos** | Matplotlib | 3.x |
-
----
+| Categoria | Tecnologia | Versão Mínima |
+|-----------|------------|---------------|
+| **Linguagem** | Python | `3.9+` |
+| **Framework Web** | Streamlit | `1.30.0` |
+| **IA Principal** | Agno Framework / Gemini 2.5 Pro | `Latest` |
+| **Visão / Mídia** | Google Gemini 2.5 Flash | `Latest` |
+| **Banco de Dados** | SQLite / sqlite3 | `Nativo` |
+| **Análise de Dados** | Openpyxl / Pandas | `3.1.0` / `2.0.0` |
 
 ---
 
-## ⚙️ Restrições Técnicas e Padrões
+## 🚀 Instalação e Execução
 
-Este projeto segue padrões rigorosos de qualidade de código:
-
-| Padrão | Regra | Motivo |
-|--------|-------|--------|
-| 🛤️ **Pathlib** | `from pathlib import Path` obrigatório | Compatibilidade Windows/Linux |
-| 🚫 **print()** | Proibido, usar `logging` | Rastreabilidade e níveis de log |
-| ⚡ **Fail Fast** | Exceções específicas no core | Identificação rápida de erros |
-| 📦 **Stateless** | Classes sem estado desnecessário | Facilita testes e manutenção |
-| 🔒 **Config Seguro** | `config.json` no `.gitignore` | Proteção de API keys |
-
----
-
-## 🚀 Setup e Execução
-
-### 1. Pré-requisitos
-
-- Python 3.9 ou superior
-- Chave da API do Google Gemini
-- (Opcional) Credenciais do Vertex AI para análise de vídeo
-
-### 2. Instalação
-
+### 1. Clonar e Inicializar Diretório
 ```bash
-# Clone o repositório
-git clone https://github.com/seu-usuario/ANALISE-DE-FALHA.git
+git clone https://github.com/GuimaraesL/ANALISE-DE-FALHA.git
 cd ANALISE-DE-FALHA
+```
 
-# Crie um ambiente virtual
+### 2. Configurar o Ambiente Virtual
+```powershell
+# Criação do virtualenv
 python -m venv venv
 
-# Ative o ambiente (Windows)
-.\venv\Scripts\activate
+# Ativação (Windows PowerShell)
+.\venv\Scripts\Activate.ps1
 
-# Ative o ambiente (Linux/Mac)
+# Ativação (Linux / macOS)
 source venv/bin/activate
+```
 
-# Instale as dependências
+### 3. Instalar Dependências
+```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configuração
-
-Crie um arquivo `config.json` na raiz do projeto:
-
+### 4. Configurar Variáveis de Ambiente e Arquivo de Credenciais
+Crie o arquivo `config.json` na raiz do projeto (este arquivo é protegido e está listado no `.gitignore`):
 ```json
 {
-    "gemini_api_key": "SUA_CHAVE_API_AQUI",
+    "gemini_api_key": "SUA_CHAVE_API_GEMINI_AQUI",
     "google_credentials_path": "vertex-key.json"
 }
 ```
 
-### 4. Execução
-
+### 5. Executar os Testes de Integração
+Antes de rodar a UI Streamlit, valide se o ambiente e o banco de dados estão respondendo perfeitamente:
 ```bash
-# Iniciar aplicação principal
-streamlit run app.py
-
-# Ou para testar UI sem gastar créditos
-streamlit run test_ui_preview.py
+python tests/test_v2_integration.py
 ```
 
----
-
-## 🔧 Troubleshooting
-
-### Problema: "API key not found"
-
-**Causa:** Arquivo `config.json` não encontrado ou mal formatado.
-
-**Solução:**
+### 6. Inicializar o Streamlit
 ```bash
-# Verifique se o arquivo existe
-ls config.json
-
-# Verifique o conteúdo (JSON válido)
-cat config.json | python -m json.tool
-```
-
-### Problema: "Arquivo de histórico não encontrado"
-
-**Causa:** O arquivo `extracted_data.json` não está presente.
-
-**Solução:** Este arquivo contém o histórico de falhas para o RAG. Você precisa obtê-lo do sistema de extração ou criar um arquivo vazio:
-```json
-[]
-```
-
-### Problema: "Port 8501 already in use"
-
-**Causa:** Outra instância do Streamlit está rodando.
-
-**Solução:**
-```bash
-# Use outra porta
-streamlit run app.py --server.port 8502
-```
-
-### Problema: "ModuleNotFoundError: No module named 'core'"
-
-**Causa:** Você não está na pasta raiz do projeto.
-
-**Solução:**
-```bash
-cd C:\caminho\para\ANALISE-DE-FALHA
 streamlit run app.py
 ```
 
-### Problema: Análise de vídeo falhando
+---
 
-**Causa:** Credenciais do Vertex AI não configuradas.
+## ⚙️ Padrões Rigorosos e Qualidade de Código
 
-**Solução:**
-1. Coloque o arquivo `vertex-key.json` na raiz do projeto
-2. Configure o caminho no `config.json`:
-   ```json
-   "google_credentials_path": "vertex-key.json"
-   ```
+Para manter a portabilidade e a integridade em sistemas operacionais múltiplos (Windows/Linux/OneDrive), o projeto adota:
+*   **Pathlib Extensivo:** Ausência total de caminhos fixados por string (`/` ou `\`). Todos os caminhos resolvem de forma absoluta a partir de `__file__`.
+*   **Logging Estruturado:** Uso exclusivo da biblioteca nativa `logging`. Uso de `print()` é proibido.
+*   **Fail Fast:** Exceções são validadas na inicialização do SQLite ou durante a leitura do Excel, emitindo avisos detalhados e amigáveis ao usuário antes de prosseguir.
+*   **Repository Pattern:** A interface com o banco SQLite em `core/database.py` expõe apenas operações abstratas de negócios, isolando o código de persistência da UI.
 
 ---
 
-## 📊 Métricas de Tokens
+## 🏆 Memória Evolutiva & Calibração Humana
 
-O sistema exibe o consumo de tokens de cada análise:
-
-| Métrica | Descrição |
-|---------|-----------|
-| **Tokens de Entrada** | Prompt + histórico + análises de mídia |
-| **Tokens de Saída** | Resposta da IA (Ishikawa, 5 Porquês, etc) |
-| **Custo Estimado** | Baseado na tabela de preços do Gemini |
-
-⚠️ **Limite Recomendado:** Manter prompt final abaixo de 30.000 tokens para otimização de custo.
+Um grande destaque da **arquitetura V2** é a calibração contínua do comportamento da IA:
+1. **Geração do RCA:** A IA cria o diagnóstico e persistência de forma autônoma na tabela `analyses`.
+2. **Avaliação do Especialista:** Engenheiros de manutenção avaliam a saída no Streamlit e fornecem notas ou correções textuais.
+3. **Marcação de Gold Standard:** Quando marcada como um exemplo exemplar, a análise é salva na tabela `expert_feedback` como `is_gold_standard = True`.
+4. **Few-Shot Ingestion:** Nas próximas análises de problemas semelhantes, o `LeadAnalysisAgent` automaticamente recebe as notas e as resoluções anteriores do especialista no prompt, refinando as futuras gerações.
 
 ---
 
-## 🗺️ Roadmap e Evolução
-
-O projeto possui um plano de evolução estruturado para transicionar de uma ferramenta de análise para um **Sistema Especialista de Manutenção**.
-
-**Destaques do [ROADMAP.md](ROADMAP.md):**
-- **Persistência SQLite:** Memória de longo prazo para análises.
-- **Calibração de Especialista:** Aprendizado através de feedback humano (Dynamic Few-Shot).
-- **Busca Semântica (RAG):** Migração para banco de vetores para correlação avançada.
-
----
-
-## 📝 Licença
+## 📝 Licença e Contato
 
 Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
 
----
-
-## 👨‍💻 Autor
-
 Desenvolvido por **Leonardo Guimarães**
-
----
-
-*Última atualização: Janeiro 2026*
+*Última atualização da documentação: Maio de 2026*
